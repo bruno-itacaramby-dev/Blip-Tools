@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clonar Recursos - Blip Tools</title>
+    <style>
+        /* Reset e configurações básicas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Seções principais */
+        .config-section,
+        .results-section,
+        .error-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Títulos das seções */
+        h2 {
+            color: #4a5568;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        /* Formulário */
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Botão principal */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 50px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner de loading */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Informações dos resultados */
+        .results-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .results-info p {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        /* Container de recursos */
+        .recursos-container {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .recursos-header {
+            background: #f7fafc;
+            padding: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recursos-header h3 {
+            color: #4a5568;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        /* Checkbox personalizado */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a5568;
+            user-select: none;
+            gap: 10px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #cbd5e0;
+            border-radius: 4px;
+            position: relative;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .checkbox-container:hover .checkmark {
+            border-color: #667eea;
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark {
+            background: #667eea;
+            border-color: #667eea;
+        }
+
+        .checkbox-container input[type="checkbox"]:checked + .checkmark::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Lista de recursos */
+        .recursos-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .recurso-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .recurso-item:last-child {
+            border-bottom: none;
+        }
+
+        .recurso-item:hover {
+            background-color: #f7fafc;
+        }
+
+        .recurso-item .checkbox-container {
+            width: 100%;
+        }
+
+        /* Seção de erro */
+        .error-section {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+        }
+
+        .error-message h3 {
+            color: #c53030;
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            color: #742a2a;
+        }
+
+        /* Seção de progresso */
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .progress-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .progress-info p {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .progress-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-bar-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .clonagem-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-success {
+            color: #38a169;
+        }
+
+        .log-error {
+            color: #e53e3e;
+        }
+
+        .log-info {
+            color: #3182ce;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .config-section,
+            .results-section,
+            .error-section {
+                padding: 20px;
+            }
+            
+            .recursos-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            .btn-primary {
+                padding: 12px 20px;
+            }
+        }
+
+        /* Scrollbar personalizada */
+        .recursos-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .recursos-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .recursos-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .recursos-list::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="../index.html" class="back-button">← Voltar</a>
+            <h1>📋 Clonar Recursos</h1>
+            <p>Clone recursos entre diferentes contratos da plataforma Blip</p>
+        </header>
+
+        <main>
+            <!-- Formulário de configuração -->
+            <section class="config-section">
+                <h2>Router de Origem</h2>
+                <form id="configForm" class="config-form">
+                    <div class="form-group">
+                        <label for="contrato">Contrato:</label>
+                        <input 
+                            type="text" 
+                            id="contrato" 
+                            name="contrato" 
+                            placeholder="Digite o contrato"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authorization">Authorization:</label>
+                        <input 
+                            type="password" 
+                            id="authorization" 
+                            name="authorization" 
+                            placeholder="Digite o token de autorização"
+                            required
+                        >
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-text">Buscar Recursos</span>
+                        <span class="btn-loading" style="display: none;">
+                            <div class="spinner"></div>
+                            Buscando...
+                        </span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Seção de resultados -->
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <h2>Recursos Encontrados</h2>
+                <div class="results-info">
+                    <p>Total de recursos: <span id="totalRecursos">0</span></p>
+                </div>
+                
+                <div class="recursos-container">
+                    <div class="recursos-header">
+                        <h3>RECURSOS</h3>
+                        <div class="select-all-container">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="selectAll">
+                                <span class="checkmark"></span>
+                                TODOS
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="recursosList" class="recursos-list">
+                        <!-- Os recursos serão inseridos aqui dinamicamente -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção Router de Destino -->
+            <section id="routerSection" class="config-section" style="display: none;">
+                <h2>Router de Destino</h2>
+                <form id="routerForm" class="config-form">
+                    <div class="form-group">
+                        <label for="destinoContrato">Contrato de Destino:</label>
+                        <input 
+                            type="text" 
+                            id="destinoContrato" 
+                            name="destinoContrato" 
+                            placeholder="Digite o contrato de destino"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="destinoAuthorization">Authorization de Destino:</label>
+                        <input 
+                            type="password" 
+                            id="destinoAuthorization" 
+                            name="destinoAuthorization" 
+                            placeholder="Digite o token de autorização de destino"
+                            required
+                        >
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-text">Clonar Recursos</span>
+                        <span class="btn-loading" style="display: none;">
+                            <div class="spinner"></div>
+                            Clonando...
+                        </span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Seção de progresso da clonagem -->
+            <section id="progressSection" class="progress-section" style="display: none;">
+                <h2>Progresso da Clonagem</h2>
+                <div class="progress-info">
+                    <p>Processando: <span id="currentResource">-</span></p>
+                    <p>Progresso: <span id="progressCount">0</span> de <span id="totalToClone">0</span></p>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                
+                <div id="clonagemLog" class="clonagem-log">
+                    <!-- Log das operações será inserido aqui -->
+                </div>
+            </section>
+
+            <!-- Seção de erro -->
+            <section id="errorSection" class="error-section" style="display: none;">
+                <div class="error-message">
+                    <h3>❌ Erro</h3>
+                    <p id="errorText"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Elementos do DOM
+        const configForm = document.getElementById('configForm');
+        const contratoInput = document.getElementById('contrato');
+        const authorizationInput = document.getElementById('authorization');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorSection = document.getElementById('errorSection');
+        const errorText = document.getElementById('errorText');
+        const totalRecursos = document.getElementById('totalRecursos');
+        const recursosList = document.getElementById('recursosList');
+        const selectAllCheckbox = document.getElementById('selectAll');
+
+        // Novos elementos para clonagem
+        const routerSection = document.getElementById('routerSection');
+        const routerForm = document.getElementById('routerForm');
+        const destinoContratoInput = document.getElementById('destinoContrato');
+        const destinoAuthorizationInput = document.getElementById('destinoAuthorization');
+        const progressSection = document.getElementById('progressSection');
+        const currentResource = document.getElementById('currentResource');
+        const progressCount = document.getElementById('progressCount');
+        const totalToClone = document.getElementById('totalToClone');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const clonagemLog = document.getElementById('clonagemLog');
+
+        // Estado da aplicação
+        let recursos = [];
+        let checkboxes = [];
+        let recursosData = {}; // Cache dos dados dos recursos
+
+        // Event Listeners
+        configForm.addEventListener('submit', handleFormSubmit);
+        selectAllCheckbox.addEventListener('change', handleSelectAll);
+        routerForm.addEventListener('submit', handleClonagemSubmit);
+
+        // Função principal para lidar com o envio do formulário
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            
+            if (!contrato || !authorization) {
+                showError('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            // Mostrar loading
+            setLoadingState(true);
+            hideError();
+            hideResults();
+            
+            try {
+                const url = `https://${contrato}.http.msging.net/commands`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        method: 'get',
+                        uri: '/resources'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao buscar recursos');
+                }
+                
+                // Processar os dados recebidos
+                processRecursosData(data);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                
+                // Se for erro de CORS, mostrar mensagem específica
+                if (error.name === 'TypeError' && error.message.includes('CORS')) {
+                    showError('Erro de CORS: O navegador bloqueou a requisição. Use uma extensão para desabilitar CORS ou execute o servidor Node.js.');
+                } else {
+                    showError(error.message || 'Erro ao conectar com o servidor');
+                }
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        // Função para processar os dados dos recursos
+        function processRecursosData(data) {
+            try {
+                // Verificar se a resposta tem a estrutura esperada
+                if (!data.resource || !data.resource.items || !Array.isArray(data.resource.items)) {
+                    throw new Error('Formato de resposta inválido');
+                }
+                
+                recursos = data.resource.items;
+                const total = data.resource.total || recursos.length;
+                
+                // Atualizar interface
+                totalRecursos.textContent = total;
+                createRecursosCheckboxes();
+                showResults();
+                
+            } catch (error) {
+                console.error('Erro ao processar dados:', error);
+                showError('Erro ao processar os dados recebidos da API');
+            }
+        }
+
+        // Função para criar os checkboxes dos recursos
+        function createRecursosCheckboxes() {
+            recursosList.innerHTML = '';
+            checkboxes = [];
+            
+            recursos.forEach((recurso, index) => {
+                const recursoItem = document.createElement('div');
+                recursoItem.className = 'recurso-item';
+                
+                const checkboxContainer = document.createElement('label');
+                checkboxContainer.className = 'checkbox-container';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `recurso-${index}`;
+                checkbox.dataset.recurso = recurso;
+                
+                const checkmark = document.createElement('span');
+                checkmark.className = 'checkmark';
+                
+                const label = document.createElement('span');
+                label.textContent = recurso;
+                
+                checkboxContainer.appendChild(checkbox);
+                checkboxContainer.appendChild(checkmark);
+                checkboxContainer.appendChild(label);
+                recursoItem.appendChild(checkboxContainer);
+                recursosList.appendChild(recursoItem);
+                
+                // Adicionar event listener para o checkbox
+                checkbox.addEventListener('change', handleRecursoCheckboxChange);
+                checkboxes.push(checkbox);
+            });
+        }
+
+        // Função para lidar com mudanças nos checkboxes individuais
+        function handleRecursoCheckboxChange() {
+            const checkedCount = checkboxes.filter(cb => cb.checked).length;
+            const totalCount = checkboxes.length;
+            
+            // Atualizar o estado do checkbox "TODOS"
+            if (checkedCount === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (checkedCount === totalCount) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+                selectAllCheckbox.checked = false;
+            }
+
+            // Mostrar/ocultar seção de router baseado na seleção
+            if (checkedCount > 0) {
+                routerSection.style.display = 'block';
+                routerSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                routerSection.style.display = 'none';
+            }
+        }
+
+        // Função para lidar com o checkbox "TODOS"
+        function handleSelectAll() {
+            const isChecked = selectAllCheckbox.checked;
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            
+            selectAllCheckbox.indeterminate = false;
+
+            // Mostrar/ocultar seção de router baseado na seleção
+            if (isChecked) {
+                routerSection.style.display = 'block';
+                routerSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                routerSection.style.display = 'none';
+            }
+        }
+
+        // Função para obter os recursos selecionados
+        function getSelectedRecursos() {
+            return checkboxes
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.dataset.recurso);
+        }
+
+        // Função para mostrar loading
+        function setLoadingState(isLoading) {
+            const submitButton = configForm.querySelector('button[type="submit"]');
+            const btnText = submitButton.querySelector('.btn-text');
+            const btnLoading = submitButton.querySelector('.btn-loading');
+            
+            if (isLoading) {
+                submitButton.disabled = true;
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'flex';
+            } else {
+                submitButton.disabled = false;
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+            }
+        }
+
+        // Função para mostrar resultados
+        function showResults() {
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Função para esconder resultados
+        function hideResults() {
+            resultsSection.style.display = 'none';
+        }
+
+        // Função para mostrar erro
+        function showError(message) {
+            errorText.textContent = message;
+            errorSection.style.display = 'block';
+            errorSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Função para esconder erro
+        function hideError() {
+            errorSection.style.display = 'none';
+        }
+
+        // Função para gerar GUID
+        function generateGuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Função para limpar formulário
+        function clearForm() {
+            configForm.reset();
+            hideResults();
+            hideError();
+        }
+
+        // Adicionar função global para debug (pode ser removida em produção)
+        window.getSelectedRecursos = getSelectedRecursos;
+        window.clearForm = clearForm;
+
+        // Log de inicialização
+        console.log('Aplicação Clonar Recursos Standalone inicializada');
+
+        // Função para buscar dados de um recurso específico
+        async function buscarDadosRecurso(contrato, authorization, resourceKey) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authorization
+                },
+                body: JSON.stringify({
+                    id: generateGuid(),
+                    method: 'get',
+                    uri: `/resources/${resourceKey}`
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ao buscar dados do recurso ${resourceKey}: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+
+        // Função para clonar um recurso
+        async function clonarRecurso(destinoContrato, destinoAuthorization, resourceKey, resourceData) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': destinoAuthorization
+                },
+                body: JSON.stringify({
+                    id: generateGuid(),
+                    method: 'set',
+                    uri: `/resources/${resourceKey}`,
+                    type: resourceData.type,
+                    resource: resourceData.resource
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar recurso ${resourceKey}: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+
+        // Função para lidar com o envio do formulário de clonagem
+        async function handleClonagemSubmit(event) {
+            event.preventDefault();
+            
+            const destinoContrato = destinoContratoInput.value.trim();
+            const destinoAuthorization = destinoAuthorizationInput.value.trim();
+            const selectedRecursos = getSelectedRecursos();
+            
+            if (!destinoContrato || !destinoAuthorization) {
+                showError('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            if (selectedRecursos.length === 0) {
+                showError('Por favor, selecione pelo menos um recurso para clonar.');
+                return;
+            }
+            
+            // Mostrar loading e progresso
+            setClonagemLoadingState(true);
+            hideError();
+            showProgress();
+            
+            try {
+                await processarClonagem(destinoContrato, destinoAuthorization, selectedRecursos);
+                addLogItem('✅ Clonagem concluída com sucesso!', 'success');
+            } catch (error) {
+                console.error('Erro na clonagem:', error);
+                showError(error.message || 'Erro durante a clonagem');
+            } finally {
+                setClonagemLoadingState(false);
+            }
+        }
+
+        // Função para processar a clonagem de todos os recursos selecionados
+        async function processarClonagem(destinoContrato, destinoAuthorization, selectedRecursos) {
+            const total = selectedRecursos.length;
+            totalToClone.textContent = total;
+            progressCount.textContent = '0';
+            progressBarFill.style.width = '0%';
+            
+            addLogItem(`🚀 Iniciando clonagem de ${total} recursos...`, 'info');
+            
+            for (let i = 0; i < selectedRecursos.length; i++) {
+                const resourceKey = selectedRecursos[i];
+                const progress = i + 1;
+                
+                // Atualizar progresso
+                currentResource.textContent = resourceKey;
+                progressCount.textContent = progress;
+                const percentage = (progress / total) * 100;
+                progressBarFill.style.width = percentage + '%';
+                
+                try {
+                    // Buscar dados do recurso se não estiver em cache
+                    if (!recursosData[resourceKey]) {
+                        addLogItem(`📥 Buscando dados do recurso: ${resourceKey}`, 'info');
+                        const sourceContrato = contratoInput.value.trim();
+                        const sourceAuthorization = authorizationInput.value.trim();
+                        
+                        const resourceData = await buscarDadosRecurso(sourceContrato, sourceAuthorization, resourceKey);
+                        recursosData[resourceKey] = resourceData;
+                    }
+                    
+                    // Clonar o recurso
+                    addLogItem(`🔄 Clonando recurso: ${resourceKey}`, 'info');
+                    await clonarRecurso(destinoContrato, destinoAuthorization, resourceKey, recursosData[resourceKey]);
+                    addLogItem(`✅ Recurso clonado com sucesso: ${resourceKey}`, 'success');
+                    
+                } catch (error) {
+                    addLogItem(`❌ Erro ao clonar ${resourceKey}: ${error.message}`, 'error');
+                    throw error;
+                }
+                
+                // Pequena pausa entre as requisições
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        // Função para adicionar item ao log
+        function addLogItem(message, type = 'info') {
+            const logItem = document.createElement('div');
+            logItem.className = `log-item log-${type}`;
+            logItem.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            clonagemLog.appendChild(logItem);
+            clonagemLog.scrollTop = clonagemLog.scrollHeight;
+        }
+
+        // Função para mostrar seção de progresso
+        function showProgress() {
+            progressSection.style.display = 'block';
+            progressSection.scrollIntoView({ behavior: 'smooth' });
+            clonagemLog.innerHTML = ''; // Limpar log anterior
+        }
+
+        // Função para esconder seção de progresso
+        function hideProgress() {
+            progressSection.style.display = 'none';
+        }
+
+        // Função para mostrar loading da clonagem
+        function setClonagemLoadingState(isLoading) {
+            const submitButton = routerForm.querySelector('button[type="submit"]');
+            const btnText = submitButton.querySelector('.btn-text');
+            const btnLoading = submitButton.querySelector('.btn-loading');
+            
+            if (isLoading) {
+                submitButton.disabled = true;
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'flex';
+            } else {
+                submitButton.disabled = false;
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html> 

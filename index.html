@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blip Tools - Ferramentas para Blip</title>
+    <style>
+        /* Reset e configurações básicas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .version {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            background: rgba(255,255,255,0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        /* Grid de ferramentas */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        /* Cards das ferramentas */
+        .tool-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .tool-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .tool-icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .tool-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .tool-description {
+            color: #718096;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .tool-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .tool-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Seção de informações */
+        .info-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .info-item p {
+            color: #718096;
+            font-size: 0.95rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            color: white;
+            opacity: 0.8;
+        }
+
+        footer p {
+            font-size: 0.9rem;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .tools-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .tool-card {
+                padding: 30px 20px;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animações de entrada */
+        .tool-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .tool-card:nth-child(1) { animation-delay: 0.1s; }
+        .tool-card:nth-child(2) { animation-delay: 0.2s; }
+        .tool-card:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔧 Blip Tools</h1>
+            <p>Ferramentas essenciais para gerenciar sua plataforma Blip</p>
+            <div class="version">v1.0.0</div>
+        </header>
+
+        <main>
+            <!-- Grid de ferramentas -->
+            <div class="tools-grid">
+                <!-- Clonar Recursos -->
+                <div class="tool-card" onclick="navigateTo('clonar-recursos/clonar-recursos.html')">
+                    <span class="tool-icon">📋</span>
+                    <h3 class="tool-title">Clonar Recursos</h3>
+                    <p class="tool-description">
+                        Clone recursos entre diferentes contratos da plataforma Blip. 
+                        Ideal para migração de dados ou backup de configurações.
+                    </p>
+                    <a href="clonar-recursos/clonar-recursos.html" class="tool-button">Acessar</a>
+                </div>
+
+                <!-- Clonar Bots -->
+                <div class="tool-card" onclick="navigateTo('clonar-bots/index.html')">
+                    <span class="tool-icon">🤖</span>
+                    <h3 class="tool-title">Clonar Bots</h3>
+                    <p class="tool-description">
+                        Clone bots completos entre contratos, incluindo fluxos, 
+                        configurações e recursos associados.
+                    </p>
+                    <a href="clonar-bots/index.html" class="tool-button">Acessar</a>
+                </div>
+
+                <!-- Resetar Usuário -->
+                <div class="tool-card" onclick="navigateTo('resetar-usuario/index.html')">
+                    <span class="tool-icon">🔄</span>
+                    <h3 class="tool-title">Resetar Usuário</h3>
+                    <p class="tool-description">
+                        Reset de sessão de usuário para resolver problemas de 
+                        autenticação e limpar cache de dados.
+                    </p>
+                    <a href="resetar-usuario/index.html" class="tool-button">Acessar</a>
+                </div>
+            </div>
+
+            <!-- Seção de informações -->
+            <section class="info-section">
+                <h2>ℹ️ Informações Importantes</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <h3>🔐 Autenticação</h3>
+                        <p>Todas as ferramentas requerem token de autorização válido da plataforma Blip.</p>
+                    </div>
+                    <div class="info-item">
+                        <h3>🌐 Compatibilidade</h3>
+                        <p>Funciona diretamente no navegador, sem necessidade de servidor ou instalação.</p>
+                    </div>
+                    <div class="info-item">
+                        <h3>📊 Monitoramento</h3>
+                        <p>Acompanhe o progresso em tempo real com logs detalhados de todas as operações.</p>
+                    </div>
+                    <div class="info-item">
+                        <h3>⚡ Performance</h3>
+                        <p>Processamento otimizado com pausas entre requisições para evitar sobrecarga.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>© 2024 Blip Tools - Ferramentas para Blip</p>
+        </footer>
+    </div>
+
+    <script>
+        // Função para navegação
+        function navigateTo(page) {
+            // Adicionar efeito de loading antes da navegação
+            const card = event.currentTarget;
+            card.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                window.location.href = page;
+            }, 150);
+        }
+
+        // Adicionar efeitos de hover nos cards
+        document.querySelectorAll('.tool-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Log de inicialização
+        console.log('Blip Tools - Página inicial carregada');
+        
+        // Adicionar animação de entrada para os elementos
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.tool-card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+    </script>
+</body>
+</html> 
