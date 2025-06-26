@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clonar Bots - Blip Tools</title>
+    <style>
+        /* Reset e configurações básicas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Seções principais */
+        .config-section,
+        .results-section,
+        .error-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Títulos das seções */
+        h2 {
+            color: #4a5568;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        /* Formulário */
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Botão principal */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 50px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner de loading */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Seção de erro */
+        .error-section {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+        }
+
+        .error-message h3 {
+            color: #c53030;
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            color: #742a2a;
+        }
+
+        /* Seção de progresso */
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .progress-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .progress-info p {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .progress-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-bar-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .clonagem-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-success {
+            color: #38a169;
+        }
+
+        .log-error {
+            color: #e53e3e;
+        }
+
+        .log-info {
+            color: #3182ce;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="../index.html" class="back-button">← Voltar</a>
+            <h1>🤖 Clonar Bots</h1>
+            <p>Clone bots completos entre diferentes contratos da plataforma Blip</p>
+        </header>
+
+        <main>
+            <!-- Formulário de configuração -->
+            <section class="config-section">
+                <h2>Bot de Origem</h2>
+                <form id="configForm" class="config-form">
+                    <div class="form-group">
+                        <label for="contrato">Contrato:</label>
+                        <input 
+                            type="text" 
+                            id="contrato" 
+                            name="contrato" 
+                            placeholder="Digite o contrato de origem"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authorization">Authorization:</label>
+                        <input 
+                            type="password" 
+                            id="authorization" 
+                            name="authorization" 
+                            placeholder="Digite o token de autorização"
+                            required
+                        >
+                    </div>
+                </form>
+            </section>
+
+            <!-- Seção Bot de Destino -->
+            <section class="config-section">
+                <h2>Bot de Destino</h2>
+                <form id="destinoForm" class="config-form">
+                    <div class="form-group">
+                        <label for="destinoContrato">Contrato:</label>
+                        <input 
+                            type="text" 
+                            id="destinoContrato" 
+                            name="destinoContrato" 
+                            placeholder="Digite o contrato de destino"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="destinoAuthorization">Authorization:</label>
+                        <input 
+                            type="password" 
+                            id="destinoAuthorization" 
+                            name="destinoAuthorization" 
+                            placeholder="Digite o token de autorização de destino"
+                            required
+                        >
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-text">Clonar Bot</span>
+                        <span class="btn-loading" style="display: none;">
+                            <div class="spinner"></div>
+                            Clonando...
+                        </span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Seção de progresso da clonagem -->
+            <section id="progressSection" class="progress-section" style="display: none;">
+                <h2>Progresso da Clonagem</h2>
+                <div class="progress-info">
+                    <p>Status: <span id="progressStatus">Iniciando...</span></p>
+                    <p>Etapa: <span id="progressStep">-</span></p>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                
+                <div id="clonagemLog" class="clonagem-log">
+                    <!-- Log das operações será inserido aqui -->
+                </div>
+            </section>
+
+            <!-- Seção de erro -->
+            <section id="errorSection" class="error-section" style="display: none;">
+                <div class="error-message">
+                    <h3>❌ Erro</h3>
+                    <p id="errorText"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Elementos do DOM
+        const configForm = document.getElementById('configForm');
+        const destinoForm = document.getElementById('destinoForm');
+        const contratoInput = document.getElementById('contrato');
+        const authorizationInput = document.getElementById('authorization');
+        const destinoContratoInput = document.getElementById('destinoContrato');
+        const destinoAuthorizationInput = document.getElementById('destinoAuthorization');
+        const errorSection = document.getElementById('errorSection');
+        const errorText = document.getElementById('errorText');
+        const progressSection = document.getElementById('progressSection');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressStep = document.getElementById('progressStep');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const clonagemLog = document.getElementById('clonagemLog');
+
+        // Event Listeners
+        configForm.addEventListener('submit', handleFormSubmit);
+        destinoForm.addEventListener('submit', handleFormSubmit);
+
+        // Função principal para lidar com o envio do formulário
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            const destinoContrato = destinoContratoInput.value.trim();
+            const destinoAuthorization = destinoAuthorizationInput.value.trim();
+            
+            if (!contrato || !authorization || !destinoContrato || !destinoAuthorization) {
+                showError('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            // Mostrar loading
+            setLoadingState(true);
+            hideMessages();
+            showProgress();
+            
+            try {
+                addLogItem('🚀 Iniciando processo de clonagem de bot...', 'info');
+                updateProgress('Iniciando...', 'Preparando dados', 0);
+                
+                console.log('Iniciando clonagem de bot');
+                console.log('Contrato origem:', contrato);
+                console.log('Contrato destino:', destinoContrato);
+                
+                // 1ª requisição GET - Obter fluxo do bot de origem
+                updateProgress('Buscando dados...', 'Obtendo fluxo do bot de origem', 10);
+                addLogItem('📥 Buscando fluxo do bot de origem...', 'info');
+                const jsonFluxo = await getBotFlow(contrato, authorization);
+                addLogItem('✅ Fluxo do bot obtido com sucesso', 'success');
+                console.log('Fluxo do bot obtido:', jsonFluxo);
+                
+                // 2ª requisição GET - Obter configurações globais do bot de origem
+                updateProgress('Buscando dados...', 'Obtendo configurações globais', 30);
+                addLogItem('📥 Buscando configurações globais...', 'info');
+                const jsonConfigsGlobais = await getGlobalActions(contrato, authorization);
+                addLogItem('✅ Configurações globais obtidas com sucesso', 'success');
+                console.log('Configurações globais obtidas:', jsonConfigsGlobais);
+                
+                // 3ª requisição GET - Obter configurações gerais do bot de origem
+                updateProgress('Buscando dados...', 'Obtendo configurações gerais', 50);
+                addLogItem('📥 Buscando configurações gerais...', 'info');
+                const jsonConfigsGerais = await getGeneralConfiguration(contrato, authorization);
+                addLogItem('✅ Configurações gerais obtidas com sucesso', 'success');
+                console.log('Configurações gerais obtidas:', jsonConfigsGerais);
+                
+                // 1ª requisição SET - Enviar fluxo para o bot de destino
+                updateProgress('Enviando dados...', 'Enviando fluxo para bot de destino', 60);
+                addLogItem('📤 Enviando fluxo para o bot de destino...', 'info');
+                await setBotFlow(destinoContrato, destinoAuthorization, jsonFluxo);
+                addLogItem('✅ Fluxo enviado com sucesso', 'success');
+                console.log('Fluxo enviado para o bot de destino');
+                
+                // 2ª requisição SET - Enviar configurações globais para o bot de destino
+                updateProgress('Enviando dados...', 'Enviando configurações globais', 80);
+                addLogItem('📤 Enviando configurações globais...', 'info');
+                await setGlobalActions(destinoContrato, destinoAuthorization, jsonConfigsGlobais);
+                addLogItem('✅ Configurações globais enviadas com sucesso', 'success');
+                console.log('Configurações globais enviadas para o bot de destino');
+                
+                // 3ª requisição SET - Enviar configurações gerais para o bot de destino
+                updateProgress('Finalizando...', 'Enviando configurações gerais', 90);
+                addLogItem('📤 Enviando configurações gerais...', 'info');
+                await setGeneralConfiguration(destinoContrato, destinoAuthorization, jsonConfigsGerais);
+                addLogItem('✅ Configurações gerais enviadas com sucesso', 'success');
+                console.log('Configurações gerais enviadas para o bot de destino');
+                
+                // Sucesso!
+                updateProgress('Concluído!', 'Clonagem finalizada com sucesso', 100);
+                addLogItem('🎉 Clonagem concluída com sucesso!', 'success');
+                addLogItem('✅ Todos os dados foram transferidos corretamente.', 'success');
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                addLogItem(`❌ Erro: ${error.message}`, 'error');
+                updateProgress('Erro!', 'Processo interrompido', 0);
+                showError(error.message || 'Erro ao conectar com o servidor');
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        // Função para obter o fluxo do bot de origem
+        async function getBotFlow(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "uri": "/buckets/blip_portal:builder_working_flow"
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 1ª requisição GET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 1ª requisição:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta: ${data.status}`);
+            }
+            
+            if (!data.resource) {
+                throw new Error('Resposta não contém o resource esperado');
+            }
+            
+            return data.resource;
+        }
+
+        // Função para obter configurações globais do bot de origem
+        async function getGlobalActions(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "uri": "/buckets/blip_portal:builder_working_global_actions"
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 2ª requisição GET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 2ª requisição:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta: ${data.status}`);
+            }
+            
+            if (!data.resource) {
+                throw new Error('Resposta não contém o resource esperado');
+            }
+            
+            return data.resource;
+        }
+
+        // Função para obter configurações gerais do bot de origem
+        async function getGeneralConfiguration(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "uri": "/buckets/blip_portal:builder_working_configuration"
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 3ª requisição GET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 3ª requisição:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta: ${data.status}`);
+            }
+            
+            if (!data.resource) {
+                throw new Error('Resposta não contém o resource esperado');
+            }
+            
+            return data.resource;
+        }
+
+        // Função para enviar fluxo para o bot de destino
+        async function setBotFlow(contrato, authorization, jsonFluxo) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "uri": "/buckets/blip_portal:builder_working_flow",
+                "type": "application/json",
+                "resource": jsonFluxo
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 1ª requisição SET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição SET: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 1ª requisição SET:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta SET: ${data.status}`);
+            }
+        }
+
+        // Função para enviar configurações globais para o bot de destino
+        async function setGlobalActions(contrato, authorization, jsonConfigsGlobais) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "uri": "/buckets/blip_portal:builder_working_global_actions",
+                "type": "application/json",
+                "resource": jsonConfigsGlobais
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 2ª requisição SET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição SET: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 2ª requisição SET:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta SET: ${data.status}`);
+            }
+        }
+
+        // Função para enviar configurações gerais para o bot de destino
+        async function setGeneralConfiguration(contrato, authorization, jsonConfigsGerais) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "uri": "/buckets/blip_portal:builder_working_configuration",
+                "type": "application/json",
+                "resource": jsonConfigsGerais
+            };
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            
+            console.log('Fazendo 3ª requisição SET para:', url);
+            console.log('Request body:', requestBody);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro na requisição SET: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Resposta da 3ª requisição SET:', data);
+            
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta SET: ${data.status}`);
+            }
+        }
+
+        // Função para mostrar loading
+        function setLoadingState(isLoading) {
+            const submitButton = destinoForm.querySelector('button[type="submit"]');
+            const btnText = submitButton.querySelector('.btn-text');
+            const btnLoading = submitButton.querySelector('.btn-loading');
+            
+            if (isLoading) {
+                submitButton.disabled = true;
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'flex';
+            } else {
+                submitButton.disabled = false;
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+            }
+        }
+
+        // Função para mostrar erro
+        function showError(message) {
+            errorText.textContent = message;
+            errorSection.style.display = 'block';
+            errorSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Função para esconder erro
+        function hideError() {
+            errorSection.style.display = 'none';
+        }
+
+        // Função para esconder todas as mensagens
+        function hideMessages() {
+            hideError();
+        }
+
+        // Função para adicionar item ao log
+        function addLogItem(message, type = 'info') {
+            const logItem = document.createElement('div');
+            logItem.className = `log-item log-${type}`;
+            logItem.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            clonagemLog.appendChild(logItem);
+            // Scroll automático garantido
+            setTimeout(() => {
+                clonagemLog.scrollTop = clonagemLog.scrollHeight;
+            }, 10);
+        }
+
+        // Função para atualizar o progresso
+        function updateProgress(status, step, percentage) {
+            progressStatus.textContent = status;
+            progressStep.textContent = step;
+            progressBarFill.style.width = percentage + '%';
+        }
+
+        // Função para mostrar seção de progresso
+        function showProgress() {
+            progressSection.style.display = 'block';
+            progressSection.scrollIntoView({ behavior: 'smooth' });
+            clonagemLog.innerHTML = ''; // Limpar log anterior
+        }
+
+        // Função para esconder seção de progresso
+        function hideProgress() {
+            progressSection.style.display = 'none';
+        }
+
+        // Função para gerar GUID
+        function generateGuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Log de inicialização
+        console.log('Página Clonar Bots inicializada');
+    </script>
+</body>
+</html> 

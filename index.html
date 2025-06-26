@@ -224,26 +224,6 @@
                 grid-template-columns: 1fr;
             }
         }
-
-        /* Animações de entrada */
-        .tool-card {
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        .tool-card:nth-child(1) { animation-delay: 0.1s; }
-        .tool-card:nth-child(2) { animation-delay: 0.2s; }
-        .tool-card:nth-child(3) { animation-delay: 0.3s; }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
     </style>
 </head>
 <body>
@@ -269,14 +249,14 @@
                 </div>
 
                 <!-- Clonar Bots -->
-                <div class="tool-card" onclick="navigateTo('clonar-bots/index.html')">
+                <div class="tool-card" onclick="navigateTo('clonar-bots/clonar-bots.html')">
                     <span class="tool-icon">🤖</span>
                     <h3 class="tool-title">Clonar Bots</h3>
                     <p class="tool-description">
                         Clone bots completos entre contratos, incluindo fluxos, 
                         configurações e recursos associados.
                     </p>
-                    <a href="clonar-bots/index.html" class="tool-button">Acessar</a>
+                    <a href="clonar-bots/clonar-bots.html" class="tool-button">Acessar</a>
                 </div>
 
                 <!-- Resetar Usuário -->
@@ -345,14 +325,6 @@
 
         // Log de inicialização
         console.log('Blip Tools - Página inicial carregada');
-        
-        // Adicionar animação de entrada para os elementos
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.tool-card');
-            cards.forEach((card, index) => {
-                card.style.animationDelay = `${index * 0.1}s`;
-            });
-        });
     </script>
 </body>
 </html> 
