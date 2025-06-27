@@ -516,7 +516,7 @@
                     <div class="form-group">
                         <label for="destinoAuthorization">Authorization de Destino:</label>
                         <input 
-                            type="text 
+                            type="text" 
                             id="destinoAuthorization" 
                             name="destinoAuthorization" 
                             placeholder="Digite o token de autorização de destino"
@@ -828,6 +828,14 @@
         // Função para buscar dados de um recurso específico
         async function buscarDadosRecurso(contrato, authorization, resourceKey) {
             const url = `https://${contrato}.http.msging.net/commands`;
+            const requestBody = {
+                id: generateGuid(),
+                method: 'get',
+                uri: `/resources/${resourceKey}`
+            };
+            
+            console.log('GET Recurso - URL:', url);
+            console.log('GET Recurso - Body:', requestBody);
             
             const response = await fetch(url, {
                 method: 'POST',
@@ -835,23 +843,33 @@
                     'Content-Type': 'application/json',
                     'Authorization': authorization
                 },
-                body: JSON.stringify({
-                    id: generateGuid(),
-                    method: 'get',
-                    uri: `/resources/${resourceKey}`
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
                 throw new Error(`Erro ao buscar dados do recurso ${resourceKey}: ${response.status}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            console.log('GET Recurso - Resposta:', data);
+            return data;
         }
 
         // Função para clonar um recurso
         async function clonarRecurso(destinoContrato, destinoAuthorization, resourceKey, resourceData) {
             const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const requestBody = {
+                id: generateGuid(),
+                method: 'set',
+                uri: `/resources/${resourceKey}`,
+                type: resourceData.type,
+                resource: resourceData.resource
+            };
+            
+            console.log('SET Recurso - URL:', url);
+            console.log('SET Recurso - Body:', requestBody);
+            console.log('SET Recurso - Type:', resourceData.type);
+            console.log('SET Recurso - Resource:', resourceData.resource);
             
             const response = await fetch(url, {
                 method: 'POST',
@@ -859,25 +877,29 @@
                     'Content-Type': 'application/json',
                     'Authorization': destinoAuthorization
                 },
-                body: JSON.stringify({
-                    id: generateGuid(),
-                    method: 'set',
-                    uri: `/resources/${resourceKey}`,
-                    type: resourceData.type,
-                    resource: resourceData.resource
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
-                throw new Error(`Erro ao clonar recurso ${resourceKey}: ${response.status}`);
+                const errorText = await response.text();
+                console.error('SET Recurso - Erro Response:', errorText);
+                throw new Error(`Erro ao clonar recurso ${resourceKey}: ${response.status} - ${errorText}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            console.log('SET Recurso - Resposta:', data);
+            return data;
         }
 
         // Função para lidar com o envio do formulário de clonagem
         async function handleClonagemSubmit(event) {
             event.preventDefault();
+            
+            // Verificar se os elementos existem
+            if (!destinoContratoInput || !destinoAuthorizationInput) {
+                showError('Erro: Elementos do formulário não encontrados.');
+                return;
+            }
             
             const destinoContrato = destinoContratoInput.value.trim();
             const destinoAuthorization = destinoAuthorizationInput.value.trim();
