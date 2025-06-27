@@ -273,6 +273,54 @@
         .log-info {
             color: #3182ce;
         }
+
+        /* Switch customizado */
+        .switch-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px 24px;
+            margin-bottom: 10px;
+        }
+        .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 400;
+            cursor: pointer;
+            user-select: none;
+        }
+        .switch-input {
+            display: none;
+        }
+        .switch-slider {
+            width: 38px;
+            height: 22px;
+            background: #b0b8c1;
+            border-radius: 22px;
+            position: relative;
+            transition: none;
+        }
+        .switch-slider::before {
+            content: '';
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .switch-input:checked + .switch-slider {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .switch-input:checked + .switch-slider::before {
+            transform: translateX(16px);
+        }
+        .switch-label span:last-child {
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body>
@@ -302,7 +350,7 @@
                     <div class="form-group">
                         <label for="authorization">Authorization:</label>
                         <input 
-                            type="password" 
+                            type="text" 
                             id="authorization" 
                             name="authorization" 
                             placeholder="Digite o token de autorização"
@@ -330,12 +378,49 @@
                     <div class="form-group">
                         <label for="destinoAuthorization">Authorization:</label>
                         <input 
-                            type="password" 
+                            type="text" 
                             id="destinoAuthorization" 
                             name="destinoAuthorization" 
                             placeholder="Digite o token de autorização de destino"
                             required
                         >
+                    </div>
+
+                    <!-- Checkboxes de opções de clonagem -->
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-weight: 600; color: #4a5568; margin-bottom: 5px;">O que clonar?</label>
+                        <div class="switch-grid">
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbFluxo" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Fluxo
+                            </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbAtendentes" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Atendentes
+                            </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbRegras" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Regras de Atendimento
+                            </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbFilas" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Filas
+                            </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbTags" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Tags
+                            </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbRespostas" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Respostas Prontas
+                            </label>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn-primary">
@@ -424,47 +509,87 @@
                 console.log('Contrato origem:', contrato);
                 console.log('Contrato destino:', destinoContrato);
                 
-                // 1ª requisição GET - Obter fluxo do bot de origem
-                updateProgress('Buscando dados...', 'Obtendo fluxo do bot de origem', 10);
+                // Verificar switches
+                const fluxoSwitch = document.getElementById('cbFluxo').checked;
+                const filasSwitch = document.getElementById('cbFilas').checked;
+                const regrasSwitch = document.getElementById('cbRegras').checked;
+                const atendentesSwitch = document.getElementById('cbAtendentes').checked;
+                const respostasSwitch = document.getElementById('cbRespostas').checked;
+                const tagsSwitch = document.getElementById('cbTags').checked;
+                
+                let progressStep = 0;
+                const totalSteps = [fluxoSwitch, filasSwitch, regrasSwitch, atendentesSwitch, respostasSwitch, tagsSwitch].filter(Boolean).length;
+                const progressIncrement = totalSteps > 0 ? 100 / totalSteps : 0;
+                
+                // 1. FLUXO (sempre executado - é o básico)
+                updateProgress('Processando...', 'Obtendo e enviando fluxo do bot', progressStep);
                 addLogItem('📥 Buscando fluxo do bot de origem...', 'info');
                 const jsonFluxo = await getBotFlow(contrato, authorization);
                 addLogItem('✅ Fluxo do bot obtido com sucesso', 'success');
-                console.log('Fluxo do bot obtido:', jsonFluxo);
                 
-                // 2ª requisição GET - Obter configurações globais do bot de origem
-                updateProgress('Buscando dados...', 'Obtendo configurações globais', 30);
-                addLogItem('📥 Buscando configurações globais...', 'info');
-                const jsonConfigsGlobais = await getGlobalActions(contrato, authorization);
-                addLogItem('✅ Configurações globais obtidas com sucesso', 'success');
-                console.log('Configurações globais obtidas:', jsonConfigsGlobais);
-                
-                // 3ª requisição GET - Obter configurações gerais do bot de origem
-                updateProgress('Buscando dados...', 'Obtendo configurações gerais', 50);
-                addLogItem('📥 Buscando configurações gerais...', 'info');
-                const jsonConfigsGerais = await getGeneralConfiguration(contrato, authorization);
-                addLogItem('✅ Configurações gerais obtidas com sucesso', 'success');
-                console.log('Configurações gerais obtidas:', jsonConfigsGerais);
-                
-                // 1ª requisição SET - Enviar fluxo para o bot de destino
-                updateProgress('Enviando dados...', 'Enviando fluxo para bot de destino', 60);
                 addLogItem('📤 Enviando fluxo para o bot de destino...', 'info');
                 await setBotFlow(destinoContrato, destinoAuthorization, jsonFluxo);
                 addLogItem('✅ Fluxo enviado com sucesso', 'success');
-                console.log('Fluxo enviado para o bot de destino');
+                progressStep += progressIncrement;
                 
-                // 2ª requisição SET - Enviar configurações globais para o bot de destino
-                updateProgress('Enviando dados...', 'Enviando configurações globais', 80);
-                addLogItem('📤 Enviando configurações globais...', 'info');
-                await setGlobalActions(destinoContrato, destinoAuthorization, jsonConfigsGlobais);
-                addLogItem('✅ Configurações globais enviadas com sucesso', 'success');
-                console.log('Configurações globais enviadas para o bot de destino');
+                // 2. FILAS
+                if (filasSwitch) {
+                    updateProgress('Processando...', 'Clonando filas de atendimento', progressStep);
+                    await processarFilas(contrato, authorization, destinoContrato, destinoAuthorization);
+                    progressStep += progressIncrement;
+                }
                 
-                // 3ª requisição SET - Enviar configurações gerais para o bot de destino
-                updateProgress('Finalizando...', 'Enviando configurações gerais', 90);
-                addLogItem('📤 Enviando configurações gerais...', 'info');
-                await setGeneralConfiguration(destinoContrato, destinoAuthorization, jsonConfigsGerais);
-                addLogItem('✅ Configurações gerais enviadas com sucesso', 'success');
-                console.log('Configurações gerais enviadas para o bot de destino');
+                // 3. REGRAS DE ATENDIMENTO
+                if (regrasSwitch) {
+                    updateProgress('Processando...', 'Clonando regras de atendimento', progressStep);
+                    addLogItem('📥 Buscando regras de atendimento...', 'info');
+                    const regras = await getRegrasAtendimento(contrato, authorization);
+                    
+                    for (const regra of regras) {
+                        try {
+                            await setRegraAtendimento(destinoContrato, destinoAuthorization, regra);
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (error) {
+                            addLogItem(`❌ Erro ao clonar regra ${regra.title}: ${error.message}`, 'error');
+                        }
+                    }
+                    progressStep += progressIncrement;
+                }
+                
+                // 4. ATENDENTES
+                if (atendentesSwitch) {
+                    updateProgress('Processando...', 'Clonando atendentes', progressStep);
+                    addLogItem('📥 Buscando atendentes...', 'info');
+                    const atendentes = await getAtendentes(contrato, authorization);
+                    
+                    for (const atendente of atendentes) {
+                        try {
+                            await setAtendente(destinoContrato, destinoAuthorization, atendente);
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (error) {
+                            addLogItem(`❌ Erro ao clonar atendente ${atendente.fullName}: ${error.message}`, 'error');
+                        }
+                    }
+                    progressStep += progressIncrement;
+                }
+                
+                // 5. RESPOSTAS PRONTAS
+                if (respostasSwitch) {
+                    updateProgress('Processando...', 'Clonando respostas prontas', progressStep);
+                    await processarRespostasProntas(contrato, authorization, destinoContrato, destinoAuthorization);
+                    progressStep += progressIncrement;
+                }
+                
+                // 6. TAGS
+                if (tagsSwitch) {
+                    updateProgress('Processando...', 'Clonando tags', progressStep);
+                    addLogItem('📥 Buscando tags...', 'info');
+                    const tagsInfo = await getTags(contrato, authorization);
+                    
+                    addLogItem('📤 Clonando tags...', 'info');
+                    await setTags(destinoContrato, destinoAuthorization, tagsInfo);
+                    progressStep += progressIncrement;
+                }
                 
                 // Sucesso!
                 updateProgress('Concluído!', 'Clonagem finalizada com sucesso', 100);
@@ -799,6 +924,467 @@
                 const v = c == 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
+        }
+
+        // Função para obter atendentes do bot de origem
+        async function getAtendentes(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "get",
+                "uri": "/attendants"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando atendentes do bot de origem...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de atendentes: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de atendentes: ${data.status}`);
+            }
+            if (!data.resource || !Array.isArray(data.resource.items)) {
+                throw new Error('Resposta de atendentes não contém o array esperado');
+            }
+            addLogItem(`✅ ${data.resource.items.length} atendente(s) obtido(s) com sucesso`, 'success');
+            return data.resource.items;
+        }
+
+        // Função para criar/setar atendente no bot de destino
+        async function setAtendente(destinoContrato, destinoAuthorization, atendente) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "set",
+                "uri": "/attendants",
+                "type": "application/vnd.iris.desk.attendant+json",
+                "resource": {
+                    "identity": atendente.identity,
+                    "email": atendente.email,
+                    "teams": Array.isArray(atendente.teams) ? atendente.teams : []
+                }
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem(`📤 Clonando atendente: ${atendente.fullName || atendente.identity}...`, 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar atendente ${atendente.identity}: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar atendente ${atendente.identity}: ${data.status}`);
+            }
+            addLogItem(`✅ Atendente clonado: ${atendente.fullName || atendente.identity}`, 'success');
+        }
+
+        // Função para obter regras de atendimento do bot de origem
+        async function getRegrasAtendimento(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "get",
+                "uri": "/rules"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando regras de atendimento do bot de origem...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de regras: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de regras: ${data.status}`);
+            }
+            if (!data.resource || !Array.isArray(data.resource.items)) {
+                throw new Error('Resposta de regras não contém o array esperado');
+            }
+            addLogItem(`✅ ${data.resource.items.length} regra(s) de atendimento obtida(s) com sucesso`, 'success');
+            return data.resource.items;
+        }
+
+        // Função para criar/setar regra de atendimento no bot de destino
+        async function setRegraAtendimento(destinoContrato, destinoAuthorization, regra) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            
+            // Extrair os valores das condições (pode ter múltiplas condições)
+            const values = [];
+            if (regra.conditions && Array.isArray(regra.conditions)) {
+                regra.conditions.forEach(condition => {
+                    if (condition.values && Array.isArray(condition.values)) {
+                        values.push(...condition.values);
+                    }
+                });
+            }
+            
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "set",
+                "uri": "/rules",
+                "type": "application/vnd.iris.desk.rule+json",
+                "resource": {
+                    "id": generateGuid(), // Novo ID para a regra no destino
+                    "isActive": regra.isActive || false,
+                    "property": regra.conditions && regra.conditions[0] ? regra.conditions[0].property : "Contact.Extras.filaAtendimento",
+                    "relation": regra.conditions && regra.conditions[0] ? regra.conditions[0].relation : "Equals",
+                    "team": regra.team || "",
+                    "title": regra.title || "",
+                    "values": values
+                }
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem(`📤 Clonando regra de atendimento: ${regra.title}...`, 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar regra ${regra.title}: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar regra ${regra.title}: ${data.status}`);
+            }
+            addLogItem(`✅ Regra de atendimento clonada: ${regra.title}`, 'success');
+        }
+
+        // Função para obter tags do bot de origem
+        async function getTags(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "uri": "/buckets/blip:desk:tags"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando tags do bot de origem...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de tags: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de tags: ${data.status}`);
+            }
+            if (!data.resource) {
+                throw new Error('Resposta de tags não contém o resource esperado');
+            }
+            
+            // Parsear o JSON das tags
+            try {
+                const tagsData = JSON.parse(data.resource);
+                const tagsCount = tagsData.tags ? tagsData.tags.length : 0;
+                addLogItem(`✅ ${tagsCount} tag(s) obtida(s) com sucesso`, 'success');
+                return {
+                    type: data.type,
+                    resource: data.resource,
+                    tagsData: tagsData
+                };
+            } catch (parseError) {
+                throw new Error('Erro ao processar dados das tags: ' + parseError.message);
+            }
+        }
+
+        // Função para criar/setar tags no bot de destino
+        async function setTags(destinoContrato, destinoAuthorization, tagsInfo) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "uri": "/buckets/blip:desk:tags",
+                "type": tagsInfo.type,
+                "resource": tagsInfo.resource
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem('📤 Clonando tags para o bot de destino...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar tags: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar tags: ${data.status}`);
+            }
+            
+            const tagsCount = tagsInfo.tagsData.tags ? tagsInfo.tagsData.tags.length : 0;
+            addLogItem(`✅ ${tagsCount} tag(s) clonada(s) com sucesso`, 'success');
+        }
+
+        // Função para obter categorias de respostas prontas do bot de origem
+        async function getCategoriasRespostas(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "to": "postmaster@desk.msging.net",
+                "uri": "/replies/"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando categorias de respostas prontas...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de categorias: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de categorias: ${data.status}`);
+            }
+            if (!data.resource || !Array.isArray(data.resource.items)) {
+                throw new Error('Resposta de categorias não contém o array esperado');
+            }
+            addLogItem(`✅ ${data.resource.items.length} categoria(s) de respostas encontrada(s)`, 'success');
+            return data.resource.items;
+        }
+
+        // Função para obter detalhes de uma categoria específica
+        async function getDetalhesResposta(contrato, authorization, categoriaId) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "to": "postmaster@desk.msging.net",
+                "uri": `/replies/${categoriaId}`
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao buscar detalhes da categoria ${categoriaId}: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao buscar detalhes da categoria ${categoriaId}: ${data.status}`);
+            }
+            if (!data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
+                throw new Error(`Categoria ${categoriaId} não contém itens válidos`);
+            }
+            return data.resource.items[0]; // Retorna o primeiro item da categoria
+        }
+
+        // Função para criar/setar resposta pronta no bot de destino
+        async function setRespostaPronta(destinoContrato, destinoAuthorization, resposta) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "to": "postmaster@desk.msging.net",
+                "uri": `/replies/${resposta.id}`,
+                "type": "application/vnd.lime.collection+json",
+                "resource": {
+                    "itemType": "application/vnd.iris.desk.custom-reply+json",
+                    "items": [
+                        {
+                            "id": resposta.id,
+                            "category": resposta.category,
+                            "name": resposta.name,
+                            "document": resposta.document,
+                            "type": resposta.type || "text/plain",
+                            "isDynamicContent": resposta.isDynamicContent || false
+                        }
+                    ]
+                }
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem(`📤 Clonando resposta pronta: ${resposta.name || resposta.category}...`, 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar resposta ${resposta.name}: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar resposta ${resposta.name}: ${data.status}`);
+            }
+            addLogItem(`✅ Resposta pronta clonada: ${resposta.name || resposta.category}`, 'success');
+        }
+
+        // Função para processar todas as respostas prontas
+        async function processarRespostasProntas(contrato, authorization, destinoContrato, destinoAuthorization) {
+            // 1. Buscar categorias
+            const categorias = await getCategoriasRespostas(contrato, authorization);
+            
+            // 2. Para cada categoria, buscar detalhes e clonar
+            for (const categoria of categorias) {
+                try {
+                    // Buscar detalhes da categoria
+                    const detalhes = await getDetalhesResposta(contrato, authorization, categoria.id);
+                    
+                    // Clonar resposta pronta
+                    await setRespostaPronta(destinoContrato, destinoAuthorization, detalhes);
+                    
+                    // Pequena pausa entre as requisições
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                } catch (error) {
+                    addLogItem(`❌ Erro ao processar categoria ${categoria.category}: ${error.message}`, 'error');
+                    // Continua com as próximas categorias mesmo se uma falhar
+                }
+            }
+        }
+
+        // Função para obter filas de atendimento do bot de origem
+        async function getFilas(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "get",
+                "uri": "/attendance-queues"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando filas de atendimento do bot de origem...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de filas: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de filas: ${data.status}`);
+            }
+            if (!data.resource || !Array.isArray(data.resource.items)) {
+                throw new Error('Resposta de filas não contém o array esperado');
+            }
+            addLogItem(`✅ ${data.resource.items.length} fila(s) de atendimento encontrada(s)`, 'success');
+            return {
+                type: data.type,
+                items: data.resource.items
+            };
+        }
+
+        // Função para criar/setar fila de atendimento no bot de destino
+        async function setFila(destinoContrato, destinoAuthorization, fila, type) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "set",
+                "uri": "/attendance-queues",
+                "type": "application/vnd.iris.desk.attendancequeue+json",
+                "resource": {
+                    "isActive": fila.isActive || false,
+                    "name": fila.name || "",
+                    "ownerIdentity": fila.ownerIdentity || "",
+                    "Priority": fila.Priority || 0
+                }
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem(`📤 Clonando fila de atendimento: ${fila.name}...`, 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar fila ${fila.name}: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar fila ${fila.name}: ${data.status}`);
+            }
+            addLogItem(`✅ Fila de atendimento clonada: ${fila.name}`, 'success');
+        }
+
+        // Função para processar todas as filas
+        async function processarFilas(contrato, authorization, destinoContrato, destinoAuthorization) {
+            // 1. Buscar filas
+            const filasData = await getFilas(contrato, authorization);
+            
+            // 2. Para cada fila, clonar
+            for (const fila of filasData.items) {
+                try {
+                    await setFila(destinoContrato, destinoAuthorization, fila, filasData.type);
+                    
+                    // Pequena pausa entre as requisições
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                } catch (error) {
+                    addLogItem(`❌ Erro ao processar fila ${fila.name}: ${error.message}`, 'error');
+                    // Continua com as próximas filas mesmo se uma falhar
+                }
+            }
         }
 
         // Log de inicialização
