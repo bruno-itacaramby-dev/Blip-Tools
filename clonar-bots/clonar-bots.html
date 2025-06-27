@@ -420,6 +420,11 @@
                                 <span class="switch-slider"></span>
                                 Respostas Prontas
                             </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbVariaveis" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Variáveis de Configuração
+                            </label>
                         </div>
                     </div>
                     
@@ -516,21 +521,24 @@
                 const atendentesSwitch = document.getElementById('cbAtendentes').checked;
                 const respostasSwitch = document.getElementById('cbRespostas').checked;
                 const tagsSwitch = document.getElementById('cbTags').checked;
+                const variaveisSwitch = document.getElementById('cbVariaveis').checked;
                 
                 let progressStep = 0;
-                const totalSteps = [fluxoSwitch, filasSwitch, regrasSwitch, atendentesSwitch, respostasSwitch, tagsSwitch].filter(Boolean).length;
+                const totalSteps = [fluxoSwitch, filasSwitch, regrasSwitch, atendentesSwitch, respostasSwitch, tagsSwitch, variaveisSwitch].filter(Boolean).length;
                 const progressIncrement = totalSteps > 0 ? 100 / totalSteps : 0;
                 
-                // 1. FLUXO (sempre executado - é o básico)
-                updateProgress('Processando...', 'Obtendo e enviando fluxo do bot', progressStep);
-                addLogItem('📥 Buscando fluxo do bot de origem...', 'info');
-                const jsonFluxo = await getBotFlow(contrato, authorization);
-                addLogItem('✅ Fluxo do bot obtido com sucesso', 'success');
-                
-                addLogItem('📤 Enviando fluxo para o bot de destino...', 'info');
-                await setBotFlow(destinoContrato, destinoAuthorization, jsonFluxo);
-                addLogItem('✅ Fluxo enviado com sucesso', 'success');
-                progressStep += progressIncrement;
+                // 1. FLUXO (só se switch estiver ON)
+                if (fluxoSwitch) {
+                    updateProgress('Processando...', 'Obtendo e enviando fluxo do bot', progressStep);
+                    addLogItem('📥 Buscando fluxo do bot de origem...', 'info');
+                    const jsonFluxo = await getBotFlow(contrato, authorization);
+                    addLogItem('✅ Fluxo do bot obtido com sucesso', 'success');
+                    
+                    addLogItem('📤 Enviando fluxo para o bot de destino...', 'info');
+                    await setBotFlow(destinoContrato, destinoAuthorization, jsonFluxo);
+                    addLogItem('✅ Fluxo enviado com sucesso', 'success');
+                    progressStep += progressIncrement;
+                }
                 
                 // 2. FILAS
                 if (filasSwitch) {
@@ -588,6 +596,17 @@
                     
                     addLogItem('📤 Clonando tags...', 'info');
                     await setTags(destinoContrato, destinoAuthorization, tagsInfo);
+                    progressStep += progressIncrement;
+                }
+                
+                // 7. VARIÁVEIS DE CONFIGURAÇÃO
+                if (variaveisSwitch) {
+                    updateProgress('Processando...', 'Clonando variáveis de configuração', progressStep);
+                    addLogItem('📥 Buscando variáveis de configuração...', 'info');
+                    const variaveis = await getVariaveisConfiguracao(contrato, authorization);
+                    
+                    addLogItem('📤 Clonando variáveis de configuração...', 'info');
+                    await setVariaveisConfiguracao(destinoContrato, destinoAuthorization, variaveis);
                     progressStep += progressIncrement;
                 }
                 
@@ -1385,6 +1404,70 @@
                     // Continua com as próximas filas mesmo se uma falhar
                 }
             }
+        }
+
+        // Função para obter variáveis de configuração do bot de origem
+        async function getVariaveisConfiguracao(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "get",
+                "uri": "/buckets/blip_portal:builder_working_configuration"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            addLogItem('📥 Buscando variáveis de configuração do bot de origem...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição de variáveis: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro na resposta de variáveis: ${data.status}`);
+            }
+            if (!data.resource) {
+                throw new Error('Resposta de variáveis não contém o resource esperado');
+            }
+            addLogItem('✅ Variáveis de configuração obtidas com sucesso', 'success');
+            return data.resource;
+        }
+
+        // Função para criar/setar variáveis de configuração no bot de destino
+        async function setVariaveisConfiguracao(destinoContrato, destinoAuthorization, variaveis) {
+            const url = `https://${destinoContrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "method": "set",
+                "uri": "/buckets/blip_portal:builder_working_configuration",
+                "type": "application/json",
+                "resource": variaveis
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': destinoAuthorization
+            };
+            addLogItem('📤 Clonando variáveis de configuração para o bot de destino...', 'info');
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) {
+                throw new Error(`Erro ao clonar variáveis: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.status !== 'success') {
+                throw new Error(`Erro ao clonar variáveis: ${data.status}`);
+            }
+            addLogItem('✅ Variáveis de configuração clonadas com sucesso', 'success');
         }
 
         // Log de inicialização
