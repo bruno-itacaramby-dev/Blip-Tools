@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resetar Usuário - Blip Tools</title>
+    <style>
+        /* Reset e configurações básicas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Seções principais */
+        .config-section,
+        .results-section,
+        .error-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Títulos das seções */
+        h2 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        /* Formulário */
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Botão principal */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 50px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner de loading */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Seção de erro */
+        .error-section {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+        }
+
+        .error-message h3 {
+            color: #c53030;
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            color: #742a2a;
+        }
+
+        /* Seção de progresso */
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .progress-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .progress-info p {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .progress-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-bar-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .clonagem-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-success {
+            color: #38a169;
+        }
+
+        .log-error {
+            color: #e53e3e;
+        }
+
+        .log-info {
+            color: #3182ce;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .config-section,
+            .results-section,
+            .error-section {
+                padding: 20px;
+            }
+            
+            .btn-primary {
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="../index.html" class="back-button">← Voltar</a>
+            <h1>🔄 Resetar Usuário</h1>
+            <p>Resetar configurações de usuário na plataforma Blip</p>
+        </header>
+
+        <main>
+            <!-- Formulário de configuração -->
+            <section class="config-section">
+                <h2>Bot de Origem</h2>
+                <p style="color: #4a5568; font-size: 0.9rem; margin-bottom: 15px;">Bot onde você vai resetar o usuário</p>
+                <div style="border-bottom: 2px solid #e2e8f0; margin-bottom: 15px;"></div>
+                <form id="configForm" class="config-form">
+                    <div class="form-group">
+                        <label for="contrato">Contrato:</label>
+                        <input 
+                            type="text" 
+                            id="contrato" 
+                            name="contrato" 
+                            placeholder="Digite o contrato"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authorization">Authorization:</label>
+                        <input 
+                            type="text" 
+                            id="authorization" 
+                            name="authorization" 
+                            placeholder="Digite o token de autorização"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="identidade">Identidade do Usuário:</label>
+                        <input 
+                            type="text" 
+                            id="identidade" 
+                            name="identidade" 
+                            placeholder="Digite a identidade do usuário (ex: 5511999999999@wa.gw.msging.net)"
+                            required
+                        >
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-text">Resetar Usuário</span>
+                        <span class="btn-loading" style="display: none;">
+                            <div class="spinner"></div>
+                            Resetando...
+                        </span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Seção de progresso da clonagem -->
+            <section id="progressSection" class="progress-section" style="display: none;">
+                <h2>Progresso do Reset</h2>
+                <div class="progress-info">
+                    <p>Processando: <span id="currentOperation">-</span></p>
+                    <p>Progresso: <span id="progressCount">0</span> de <span id="totalToProcess">0</span></p>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                
+                <div id="resetLog" class="clonagem-log">
+                    <!-- Log das operações será inserido aqui -->
+                </div>
+            </section>
+
+            <!-- Seção de erro -->
+            <section id="errorSection" class="error-section" style="display: none;">
+                <div class="error-message">
+                    <h3>❌ Erro</h3>
+                    <p id="errorText"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Elementos do DOM
+        const configForm = document.getElementById('configForm');
+        const contratoInput = document.getElementById('contrato');
+        const authorizationInput = document.getElementById('authorization');
+        const identidadeInput = document.getElementById('identidade');
+        const errorSection = document.getElementById('errorSection');
+        const errorText = document.getElementById('errorText');
+        const progressSection = document.getElementById('progressSection');
+        const currentOperation = document.getElementById('currentOperation');
+        const progressCount = document.getElementById('progressCount');
+        const totalToProcess = document.getElementById('totalToProcess');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const resetLog = document.getElementById('resetLog');
+
+        // Contadores
+        let requestCounter = 0;
+        let totalRequests = 0;
+
+        // Event Listeners
+        configForm.addEventListener('submit', handleFormSubmit);
+
+        // Função para gerar ID aleatório
+        function generateRandomId() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Função para adicionar log
+        function addLog(message, type = 'info') {
+            const logItem = document.createElement('div');
+            logItem.className = `log-item log-${type}`;
+            logItem.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resetLog.appendChild(logItem);
+            resetLog.scrollTop = resetLog.scrollHeight;
+        }
+
+        // Função para atualizar progresso
+        function updateProgress(current, total, operation) {
+            currentOperation.textContent = operation;
+            progressCount.textContent = current;
+            totalToProcess.textContent = total;
+            
+            const percentage = total > 0 ? (current / total) * 100 : 0;
+            progressBarFill.style.width = `${percentage}%`;
+        }
+
+        // Função para mostrar/esconder seções
+        function showProgress() {
+            progressSection.style.display = 'block';
+            errorSection.style.display = 'none';
+        }
+
+        function hideProgress() {
+            progressSection.style.display = 'none';
+        }
+
+        // Função para incrementar contador de requisições
+        function incrementRequestCounter() {
+            requestCounter++;
+            updateProgress(requestCounter, totalRequests, `Processando requisição ${requestCounter}`);
+        }
+
+        // Função para mostrar erro
+        function showError(message) {
+            errorText.textContent = message;
+            errorSection.style.display = 'block';
+            hideProgress();
+        }
+
+        // Função para esconder erro
+        function hideError() {
+            errorSection.style.display = 'none';
+        }
+
+        // Função para definir estado de loading
+        function setLoadingState(loading) {
+            const btnText = document.querySelector('.btn-text');
+            const btnLoading = document.querySelector('.btn-loading');
+            const submitBtn = document.querySelector('.btn-primary');
+            
+            if (loading) {
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'flex';
+                submitBtn.disabled = true;
+            } else {
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+
+        // Função para deletar variável específica
+        async function deleteName(authKey, contract, identify, name) {
+            const url = `https://${contract}.http.msging.net/commands`;
+            const headers = { 'Content-Type': 'application/json', 'Authorization': authKey };
+            const body = {
+                "id": generateRandomId(),
+                "method": "delete",
+                "uri": `/contexts/${identify}/${encodeURIComponent(name)}`
+            };
+            await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+        }
+
+        // Função para deletar contexto do usuário
+        async function deleteUserContext(authKey, contract, identify) {
+            const url = `https://${contract}.http.msging.net/commands`;
+            const headers = { 'Content-Type': 'application/json', 'Authorization': authKey };
+            const body = {
+                "id": generateRandomId(),
+                "method": "delete",
+                "uri": `/contacts/${identify}`
+            };
+            await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+        }
+
+        // Função principal para buscar e deletar dados
+        async function fetchData(authKey, contract, identify) {
+            addLog('🔍 Iniciando busca de variáveis do usuário...', 'info');
+            
+            const url = `https://${contract}.http.msging.net/commands`;
+            const headers = { 'Content-Type': 'application/json', 'Authorization': authKey };
+            const body = {
+                "id": generateRandomId(),
+                "method": "get",
+                "uri": `/contexts/${identify}?withContextValues=true&$take=1000`
+            };
+
+            const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+            if (!response.ok) {
+                throw new Error(`Erro na requisição para ${identify}`);
+            }
+
+            incrementRequestCounter();
+            addLog('✅ Variáveis do usuário obtidas com sucesso', 'success');
+
+            const data = await response.json();
+
+            if (data.resource && Array.isArray(data.resource.items)) {
+                const names = data.resource.items.map(item => item.name);
+                addLog(`📊 Encontradas ${names.length} variáveis para deletar`, 'info');
+
+                // Dividir as variáveis em 5 grupos
+                const totalVariables = names.length;
+                const variablesPerInstance = Math.ceil(totalVariables / 5);
+                const variableGroups = [];
+
+                for (let i = 0; i < names.length; i += variablesPerInstance) {
+                    variableGroups.push(names.slice(i, i + variablesPerInstance));
+                }
+
+                addLog(`🔄 Dividindo em ${variableGroups.length} grupos para processamento paralelo`, 'info');
+
+                // Função para processar um grupo de variáveis
+                async function processVariableGroup(group, groupIndex) {
+                    const groupErrors = [];
+                    addLog(`🚀 Iniciando grupo ${groupIndex + 1} com ${group.length} variáveis`, 'info');
+                    
+                    for (const name of group) {
+                        try {
+                            await deleteName(authKey, contract, identify, name);
+                            incrementRequestCounter();
+                            addLog(`✅ Variável "${name}" deletada (Grupo ${groupIndex + 1})`, 'success');
+                        } catch (error) {
+                            const errorMsg = `Instância ${groupIndex + 1} - Erro ao deletar variável ${name} para ${identify}`;
+                            groupErrors.push(errorMsg);
+                            addLog(`❌ ${errorMsg}`, 'error');
+                        }
+                    }
+                    
+                    addLog(`✅ Grupo ${groupIndex + 1} concluído`, 'success');
+                    return groupErrors;
+                }
+
+                // Processar todos os grupos em paralelo
+                const results = await Promise.all(variableGroups.map((group, index) => processVariableGroup(group, index)));
+
+                // Consolidar erros
+                const errors = results.flat();
+                if (errors.length > 0) {
+                    throw new Error(errors.join('\n'));
+                }
+            } else {
+                addLog('ℹ️ Nenhuma variável encontrada para deletar', 'info');
+            }
+
+            addLog('🧹 Deletando contexto do usuário...', 'info');
+            await deleteUserContext(authKey, contract, identify);
+            incrementRequestCounter();
+            addLog('✅ Contexto do usuário deletado com sucesso', 'success');
+        }
+
+        // Função principal para lidar com o envio do formulário
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            const identidade = identidadeInput.value.trim();
+            
+            if (!contrato || !authorization || !identidade) {
+                showError('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            // Resetar contadores e logs
+            requestCounter = 0;
+            totalRequests = 0;
+            resetLog.innerHTML = '';
+            
+            // Mostrar loading e progresso
+            setLoadingState(true);
+            hideError();
+            showProgress();
+            
+            // Scroll para o final da página para mostrar o progresso
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+            
+            try {
+                addLog('🚀 Iniciando processo de reset do usuário...', 'info');
+                
+                // Primeiro, fazer uma requisição para contar o total de variáveis
+                const countUrl = `https://${contrato}.http.msging.net/commands`;
+                const countResponse = await fetch(countUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateRandomId(),
+                        method: 'get',
+                        uri: `/contexts/${identidade}?withContextValues=true&$take=1000`
+                    })
+                });
+
+                if (countResponse.ok) {
+                    const countData = await countResponse.json();
+                    if (countData.resource && Array.isArray(countData.resource.items)) {
+                        totalRequests = countData.resource.items.length + 2; // +2 para a requisição inicial e delete do contexto
+                        addLog(`📊 Total de operações: ${totalRequests}`, 'info');
+                    } else {
+                        totalRequests = 2; // Apenas a requisição inicial e delete do contexto
+                        addLog(`📊 Total de operações: ${totalRequests}`, 'info');
+                    }
+                }
+
+                // Executar o reset do usuário
+                await fetchData(authorization, contrato, identidade);
+                
+                addLog('🎉 Reset do usuário concluído com sucesso!', 'success');
+                updateProgress(totalRequests, totalRequests, 'Concluído');
+                
+                // Scroll para o final da página para mostrar todo o processo
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+                
+            } catch (error) {
+                addLog(`❌ Erro: ${error.message}`, 'error');
+                updateProgress(requestCounter, totalRequests, 'Concluído com erros');
+                showError(`Erro ao resetar usuário: ${error.message}`);
+                
+                // Scroll para o final da página mesmo em caso de erro
+                window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } finally {
+                setLoadingState(false);
+            }
+        }
+    </script>
+</body>
+</html> 
