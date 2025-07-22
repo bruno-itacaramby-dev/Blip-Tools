@@ -663,45 +663,49 @@
         }
 
         // Função para buscar o ID do bot
-        async function fetchBotIdInfo() {
+        let botIdTimeout;
+        async function fetchBotIdInfoRealtime() {
+            clearTimeout(botIdTimeout);
             const contrato = contratoInput.value.trim();
             const authorization = authorizationInput.value.trim();
             const botIdInfo = document.getElementById('botIdInfo');
             botIdInfo.textContent = '';
             if (!contrato || !authorization) return;
-            try {
-                const url = `https://${contrato}.http.msging.net/commands`;
-                const guid = generateRandomId();
-                const requestBody = {
-                    id: guid,
-                    to: 'postmaster@desk.msging.net',
-                    method: 'get',
-                    uri: '/replies'
-                };
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': authorization
-                };
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(requestBody)
-                });
-                const data = await response.json();
-                if (data.to && typeof data.to === 'string') {
-                    const id = data.to.split('@')[0];
-                    if (id) {
-                        botIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+            botIdTimeout = setTimeout(async () => {
+                try {
+                    const url = `https://${contrato}.http.msging.net/commands`;
+                    const guid = generateRandomId();
+                    const requestBody = {
+                        id: guid,
+                        to: 'postmaster@desk.msging.net',
+                        method: 'get',
+                        uri: '/replies'
+                    };
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    };
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(requestBody)
+                    });
+                    const data = await response.json();
+                    if (data.to && typeof data.to === 'string') {
+                        const id = data.to.split('@')[0];
+                        if (id) {
+                            botIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                            return;
+                        }
                     }
+                    botIdInfo.textContent = '';
+                } catch (e) {
+                    botIdInfo.textContent = '';
                 }
-            } catch (e) {
-                botIdInfo.textContent = '';
-            }
+            }, 200);
         }
-        contratoInput.addEventListener('blur', fetchBotIdInfo);
-        authorizationInput.addEventListener('blur', fetchBotIdInfo);
-        contratoInput.addEventListener('input', fetchBotIdInfo);
-        authorizationInput.addEventListener('input', fetchBotIdInfo);
+        contratoInput.addEventListener('input', fetchBotIdInfoRealtime);
+        authorizationInput.addEventListener('input', fetchBotIdInfoRealtime);
     </script>
 </body>
 </html> 

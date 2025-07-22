@@ -997,86 +997,94 @@
         }
 
         // Função para buscar o ID do router de origem
-        async function fetchRouterIdInfo() {
+        let routerIdTimeout;
+        async function fetchRouterIdInfoRealtime() {
+            clearTimeout(routerIdTimeout);
             const contrato = contratoInput.value.trim();
             const authorization = authorizationInput.value.trim();
             const routerIdInfo = document.getElementById('routerIdInfo');
             routerIdInfo.textContent = '';
             if (!contrato || !authorization) return;
-            try {
-                const url = `https://${contrato}.http.msging.net/commands`;
-                const guid = generateGuid();
-                const requestBody = {
-                    id: guid,
-                    to: 'postmaster@desk.msging.net',
-                    method: 'get',
-                    uri: '/replies'
-                };
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': authorization
-                };
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(requestBody)
-                });
-                const data = await response.json();
-                if (data.to && typeof data.to === 'string') {
-                    const id = data.to.split('@')[0];
-                    if (id) {
-                        routerIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+            routerIdTimeout = setTimeout(async () => {
+                try {
+                    const url = `https://${contrato}.http.msging.net/commands`;
+                    const guid = generateGuid();
+                    const requestBody = {
+                        id: guid,
+                        to: 'postmaster@desk.msging.net',
+                        method: 'get',
+                        uri: '/replies'
+                    };
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    };
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(requestBody)
+                    });
+                    const data = await response.json();
+                    if (data.to && typeof data.to === 'string') {
+                        const id = data.to.split('@')[0];
+                        if (id) {
+                            routerIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                            return;
+                        }
                     }
+                    routerIdInfo.textContent = '';
+                } catch (e) {
+                    routerIdInfo.textContent = '';
                 }
-            } catch (e) {
-                routerIdInfo.textContent = '';
-            }
+            }, 200);
         }
-        contratoInput.addEventListener('blur', fetchRouterIdInfo);
-        authorizationInput.addEventListener('blur', fetchRouterIdInfo);
-        contratoInput.addEventListener('input', fetchRouterIdInfo);
-        authorizationInput.addEventListener('input', fetchRouterIdInfo);
+        contratoInput.addEventListener('input', fetchRouterIdInfoRealtime);
+        authorizationInput.addEventListener('input', fetchRouterIdInfoRealtime);
 
         // Função para buscar o ID do router de destino
-        async function fetchDestinoRouterIdInfo() {
+        let destinoRouterIdTimeout;
+        async function fetchDestinoRouterIdInfoRealtime() {
+            clearTimeout(destinoRouterIdTimeout);
             const contrato = destinoContratoInput.value.trim();
             const authorization = destinoAuthorizationInput.value.trim();
             const routerIdInfo = document.getElementById('destinoRouterIdInfo');
             routerIdInfo.textContent = '';
             if (!contrato || !authorization) return;
-            try {
-                const url = `https://${contrato}.http.msging.net/commands`;
-                const guid = generateGuid();
-                const requestBody = {
-                    id: guid,
-                    to: 'postmaster@desk.msging.net',
-                    method: 'get',
-                    uri: '/replies'
-                };
-                const headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': authorization
-                };
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(requestBody)
-                });
-                const data = await response.json();
-                if (data.to && typeof data.to === 'string') {
-                    const id = data.to.split('@')[0];
-                    if (id) {
-                        routerIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+            destinoRouterIdTimeout = setTimeout(async () => {
+                try {
+                    const url = `https://${contrato}.http.msging.net/commands`;
+                    const guid = generateGuid();
+                    const requestBody = {
+                        id: guid,
+                        to: 'postmaster@desk.msging.net',
+                        method: 'get',
+                        uri: '/replies'
+                    };
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    };
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(requestBody)
+                    });
+                    const data = await response.json();
+                    if (data.to && typeof data.to === 'string') {
+                        const id = data.to.split('@')[0];
+                        if (id) {
+                            routerIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                            return;
+                        }
                     }
+                    routerIdInfo.textContent = '';
+                } catch (e) {
+                    routerIdInfo.textContent = '';
                 }
-            } catch (e) {
-                routerIdInfo.textContent = '';
-            }
+            }, 200);
         }
-        destinoContratoInput.addEventListener('blur', fetchDestinoRouterIdInfo);
-        destinoAuthorizationInput.addEventListener('blur', fetchDestinoRouterIdInfo);
-        destinoContratoInput.addEventListener('input', fetchDestinoRouterIdInfo);
-        destinoAuthorizationInput.addEventListener('input', fetchDestinoRouterIdInfo);
+        destinoContratoInput.addEventListener('input', fetchDestinoRouterIdInfoRealtime);
+        destinoAuthorizationInput.addEventListener('input', fetchDestinoRouterIdInfoRealtime);
     </script>
 </body>
 </html> 
