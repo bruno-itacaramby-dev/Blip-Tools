@@ -356,6 +356,7 @@
                             placeholder="Digite o token de autorização"
                             required
                         >
+                        <div id="botIdInfo" style="color:#4a5568; font-size:0.92rem; margin-top:4px; font-weight:500;"></div>
                     </div>
                 </form>
             </section>
@@ -385,6 +386,7 @@
                             placeholder="Digite o token de autorização de destino"
                             required
                         >
+                        <div id="destinoBotIdInfo" style="color:#4a5568; font-size:0.92rem; margin-top:4px; font-weight:500;"></div>
                     </div>
 
                     <!-- Checkboxes de opções de clonagem -->
@@ -1466,6 +1468,91 @@
             }
             addLogItem('✅ Variáveis de configuração clonadas com sucesso', 'success');
         }
+
+        // Função para buscar o ID do bot de origem
+        async function fetchBotIdInfo() {
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            const botIdInfo = document.getElementById('botIdInfo');
+            botIdInfo.textContent = '';
+            if (!contrato || !authorization) return;
+            try {
+                const url = `https://${contrato}.http.msging.net/commands`;
+                const guid = generateGuid();
+                const requestBody = {
+                    id: guid,
+                    to: 'postmaster@desk.msging.net',
+                    method: 'get',
+                    uri: '/replies'
+                };
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': authorization
+                };
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await response.json();
+                if (data.to && typeof data.to === 'string') {
+                    const id = data.to.split('@')[0];
+                    if (id) {
+                        botIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                    }
+                }
+            } catch (e) {
+                // Silencioso, não mostra erro para o usuário
+                botIdInfo.textContent = '';
+            }
+        }
+        // Dispara busca ao sair do campo ou ao digitar
+        contratoInput.addEventListener('blur', fetchBotIdInfo);
+        authorizationInput.addEventListener('blur', fetchBotIdInfo);
+        contratoInput.addEventListener('input', fetchBotIdInfo);
+        authorizationInput.addEventListener('input', fetchBotIdInfo);
+
+        // Função para buscar o ID do bot de destino
+        async function fetchDestinoBotIdInfo() {
+            const contrato = destinoContratoInput.value.trim();
+            const authorization = destinoAuthorizationInput.value.trim();
+            const botIdInfo = document.getElementById('destinoBotIdInfo');
+            botIdInfo.textContent = '';
+            if (!contrato || !authorization) return;
+            try {
+                const url = `https://${contrato}.http.msging.net/commands`;
+                const guid = generateGuid();
+                const requestBody = {
+                    id: guid,
+                    to: 'postmaster@desk.msging.net',
+                    method: 'get',
+                    uri: '/replies'
+                };
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': authorization
+                };
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await response.json();
+                if (data.to && typeof data.to === 'string') {
+                    const id = data.to.split('@')[0];
+                    if (id) {
+                        botIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                    }
+                }
+            } catch (e) {
+                botIdInfo.textContent = '';
+            }
+        }
+        // Dispara busca ao sair do campo ou ao digitar
+        destinoContratoInput.addEventListener('blur', fetchDestinoBotIdInfo);
+        destinoAuthorizationInput.addEventListener('blur', fetchDestinoBotIdInfo);
+        destinoContratoInput.addEventListener('input', fetchDestinoBotIdInfo);
+        destinoAuthorizationInput.addEventListener('input', fetchDestinoBotIdInfo);
 
         // Log de inicialização
         console.log('Página Clonar Bots inicializada');
