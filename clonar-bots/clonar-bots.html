@@ -461,7 +461,7 @@
             <!-- Seção de erro -->
             <section id="errorSection" class="error-section" style="display: none;">
                 <div class="error-message">
-                    <h3>❌ Erro</h3>
+                    <h3>❌ Logs</h3>
                     <p id="errorText"></p>
                 </div>
             </section>
@@ -487,6 +487,39 @@
         // Event Listeners
         configForm.addEventListener('submit', handleFormSubmit);
         destinoForm.addEventListener('submit', handleFormSubmit);
+
+        // Função para processar todas as filas
+        async function processarFilas(contrato, authorization, destinoContrato, destinoAuthorization) {
+            // 1. Buscar filas
+            let filasData;
+            try {
+                filasData = await getFilas(contrato, authorization);
+            } catch (error) {
+                addLogItem(`❌ Erro ao buscar filas: ${error.message}`, 'error');
+                showError('Erro ao buscar filas: ' + error.message);
+                return; // Não há filas para processar, mas não interrompe o restante do processo
+            }
+            if (!filasData.items || filasData.items.length === 0) {
+                addLogItem('⚠️ Nenhuma fila encontrada para clonar.', 'error');
+                showError('Nenhuma fila encontrada para clonar.');
+                return;
+            }
+            // 2. Para cada fila, clonar (exceto Default)
+            for (const fila of filasData.items) {
+                if (fila.name && fila.name.toLowerCase() === 'default') {
+                    addLogItem('⏭️ Fila Default ignorada.', 'info');
+                    continue;
+                }
+                try {
+                    await setFila(destinoContrato, destinoAuthorization, fila, filasData.type);
+                    // Pequena pausa entre as requisições
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (error) {
+                    addLogItem(`❌ Erro ao processar fila ${fila.name}: ${error.message}`, 'error');
+                    // Continua com as próximas filas mesmo se uma falhar
+                }
+            }
+        }
 
         // Função principal para lidar com o envio do formulário
         async function handleFormSubmit(event) {
@@ -531,13 +564,11 @@
                 // 1. FLUXO (só se switch estiver ON)
                 if (fluxoSwitch) {
                     updateProgress('Processando...', 'Obtendo e enviando fluxo do bot', progressStep);
-                    addLogItem('📥 Buscando fluxo do bot de origem...', 'info');
                     const jsonFluxo = await getBotFlow(contrato, authorization);
                     addLogItem('✅ Fluxo do bot obtido com sucesso', 'success');
                     
-                    addLogItem('📤 Enviando fluxo para o bot de destino...', 'info');
                     await setBotFlow(destinoContrato, destinoAuthorization, jsonFluxo);
-                    addLogItem('✅ Fluxo enviado com sucesso', 'success');
+                    addLogItem('✅ Fluxo clonado com sucesso', 'success');
                     progressStep += progressIncrement;
                 }
                 
@@ -889,9 +920,11 @@
             }
         }
 
-        // Função para mostrar erro
+        // Função para mostrar erro (acumula erros)
         function showError(message) {
-            errorText.textContent = message;
+            // Adiciona o novo erro ao conteúdo existente
+            const current = errorText.innerHTML;
+            errorText.innerHTML = (current ? current + '<br>' : '') + message;
             errorSection.style.display = 'block';
             errorSection.scrollIntoView({ behavior: 'smooth' });
         }
@@ -899,6 +932,7 @@
         // Função para esconder erro
         function hideError() {
             errorSection.style.display = 'none';
+            errorText.innerHTML = '';
         }
 
         // Função para esconder todas as mensagens
@@ -946,6 +980,35 @@
             });
         }
 
+        // Função para obter regras de atendimento do bot de origem
+        async function getRegrasAtendimento(contrato, authorization) {
+            const url = `https://${contrato}.http.msging.net/commands`;
+            const guid = generateGuid();
+            const requestBody = {
+                "id": guid,
+                "to": "postmaster@desk.msging.net",
+                "method": "get",
+                "uri": "/rules"
+            };
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': authorization
+            };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+            const data = await response.json();
+            if (data.status !== 'success' || !data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
+                addLogItem('❌Nenhuma regra de atendimento encontrada', 'error');
+                showError('Nenhuma regra de atendimento encontrada.');
+                return [];
+            }
+            addLogItem(`✅ ${data.resource.items.length} regra(s) de atendimento obtida(s) com sucesso`, 'success');
+            return data.resource.items;
+        }
+
         // Função para obter atendentes do bot de origem
         async function getAtendentes(contrato, authorization) {
             const url = `https://${contrato}.http.msging.net/commands`;
@@ -960,21 +1023,16 @@
                 'Content-Type': 'application/json',
                 'Authorization': authorization
             };
-            addLogItem('📥 Buscando atendentes do bot de origem...', 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de atendentes: ${response.status} ${response.statusText}`);
-            }
             const data = await response.json();
-            if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de atendentes: ${data.status}`);
-            }
-            if (!data.resource || !Array.isArray(data.resource.items)) {
-                throw new Error('Resposta de atendentes não contém o array esperado');
+            if (data.status !== 'success' || !data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
+                addLogItem('❌ Nenhum atendente encontrado.', 'error');
+                showError('Nenhum atendente encontrado.');
+                return [];
             }
             addLogItem(`✅ ${data.resource.items.length} atendente(s) obtido(s) com sucesso`, 'success');
             return data.resource.items;
@@ -1006,55 +1064,19 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar atendente ${atendente.identity}: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar atendente ${atendente.identity}: ${data.status}`);
+                addLogItem(`❌ Erro ao clonar atendente ${atendente.fullName || atendente.identity}: ${data.status}`, 'error');
+                showError('Erro ao clonar atendente: ' + data.status);
+                return;
             }
             addLogItem(`✅ Atendente clonado: ${atendente.fullName || atendente.identity}`, 'success');
-        }
-
-        // Função para obter regras de atendimento do bot de origem
-        async function getRegrasAtendimento(contrato, authorization) {
-            const url = `https://${contrato}.http.msging.net/commands`;
-            const guid = generateGuid();
-            const requestBody = {
-                "id": guid,
-                "to": "postmaster@desk.msging.net",
-                "method": "get",
-                "uri": "/rules"
-            };
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': authorization
-            };
-            addLogItem('📥 Buscando regras de atendimento do bot de origem...', 'info');
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
-            });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de regras: ${response.status} ${response.statusText}`);
-            }
-            const data = await response.json();
-            if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de regras: ${data.status}`);
-            }
-            if (!data.resource || !Array.isArray(data.resource.items)) {
-                throw new Error('Resposta de regras não contém o array esperado');
-            }
-            addLogItem(`✅ ${data.resource.items.length} regra(s) de atendimento obtida(s) com sucesso`, 'success');
-            return data.resource.items;
         }
 
         // Função para criar/setar regra de atendimento no bot de destino
         async function setRegraAtendimento(destinoContrato, destinoAuthorization, regra) {
             const url = `https://${destinoContrato}.http.msging.net/commands`;
             const guid = generateGuid();
-            
             // Extrair os valores das condições (pode ter múltiplas condições)
             const values = [];
             if (regra.conditions && Array.isArray(regra.conditions)) {
@@ -1064,7 +1086,6 @@
                     }
                 });
             }
-            
             const requestBody = {
                 "id": guid,
                 "to": "postmaster@desk.msging.net",
@@ -1091,12 +1112,16 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar regra ${regra.title}: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar regra ${regra.title}: ${data.status}`);
+                if (data.reason && data.reason.description && data.reason.description.includes('Attendance queue not found for the specified resource.')) {
+                    addLogItem(`❌ Regra (${regra.title}) -> Fila (${regra.team}) - Fila não existe`, 'error');
+                    showError(`Regra (${regra.title}) -> Fila (${regra.team}) - Fila não existe`);
+                } else {
+                    addLogItem(`❌ Erro ao clonar regra ${regra.title}: ${data.description || (data.reason && data.reason.description) || data.status}`, 'error');
+                    showError('Erro ao clonar regra: ' + (data.description || (data.reason && data.reason.description) || data.status));
+                }
+                return;
             }
             addLogItem(`✅ Regra de atendimento clonada: ${regra.title}`, 'success');
         }
@@ -1114,23 +1139,17 @@
                 'Content-Type': 'application/json',
                 'Authorization': authorization
             };
-            addLogItem('📥 Buscando tags do bot de origem...', 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de tags: ${response.status} ${response.statusText}`);
-            }
             const data = await response.json();
-            if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de tags: ${data.status}`);
+            if (data.status !== 'success' || !data.resource) {
+                addLogItem('❌ Nenhuma tag encontrada.', 'error');
+                showError('Nenhuma tag encontrada.');
+                return { type: null, resource: null, tagsData: { tags: [] } };
             }
-            if (!data.resource) {
-                throw new Error('Resposta de tags não contém o resource esperado');
-            }
-            
             // Parsear o JSON das tags
             try {
                 const tagsData = JSON.parse(data.resource);
@@ -1142,7 +1161,9 @@
                     tagsData: tagsData
                 };
             } catch (parseError) {
-                throw new Error('Erro ao processar dados das tags: ' + parseError.message);
+                addLogItem('❌ Erro ao processar dados das tags: ' + parseError.message, 'error');
+                showError('Erro ao processar dados das tags: ' + parseError.message);
+                return { type: null, resource: null, tagsData: { tags: [] } };
             }
         }
 
@@ -1161,20 +1182,17 @@
                 'Content-Type': 'application/json',
                 'Authorization': destinoAuthorization
             };
-            addLogItem('📤 Clonando tags para o bot de destino...', 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar tags: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar tags: ${data.status}`);
+                addLogItem(`❌ Erro ao clonar tags: ${data.status}`, 'error');
+                showError('Erro ao clonar tags: ' + data.status);
+                return;
             }
-            
             const tagsCount = tagsInfo.tagsData.tags ? tagsInfo.tagsData.tags.length : 0;
             addLogItem(`✅ ${tagsCount} tag(s) clonada(s) com sucesso`, 'success');
         }
@@ -1199,15 +1217,16 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de categorias: ${response.status} ${response.statusText}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de categorias: ${data.status}`);
+                addLogItem(`❌ Erro na resposta de categorias: ${data.status}`, 'error');
+                showError('Erro na resposta de categorias: ' + data.status);
+                return [];
             }
-            if (!data.resource || !Array.isArray(data.resource.items)) {
-                throw new Error('Resposta de categorias não contém o array esperado');
+            if (!data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
+                addLogItem('❌ Nenhuma categoria de resposta pronta encontrada.', 'error');
+                showError('Nenhuma categoria de resposta pronta encontrada.');
+                return [];
             }
             addLogItem(`✅ ${data.resource.items.length} categoria(s) de respostas encontrada(s)`, 'success');
             return data.resource.items;
@@ -1279,12 +1298,11 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar resposta ${resposta.name}: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar resposta ${resposta.name}: ${data.status}`);
+                addLogItem(`❌ Erro ao clonar resposta ${resposta.name}: ${data.status}`, 'error');
+                showError('Erro ao clonar resposta pronta: ' + data.status);
+                return;
             }
             addLogItem(`✅ Resposta pronta clonada: ${resposta.name || resposta.category}`, 'success');
         }
@@ -1333,14 +1351,15 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de filas: ${response.status} ${response.statusText}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de filas: ${data.status}`);
+                addLogItem(`❌ Erro na resposta de filas: ${data.status}`, 'error');
+                showError('Erro na resposta de filas: ' + data.status);
+                throw new Error('Erro na resposta de filas: ' + data.status);
             }
             if (!data.resource || !Array.isArray(data.resource.items)) {
+                addLogItem('❌ Resposta de filas não contém o array esperado', 'error');
+                showError('Resposta de filas não contém o array esperado');
                 throw new Error('Resposta de filas não contém o array esperado');
             }
             addLogItem(`✅ ${data.resource.items.length} fila(s) de atendimento encontrada(s)`, 'success');
@@ -1377,34 +1396,18 @@
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar fila ${fila.name}: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar fila ${fila.name}: ${data.status}`);
+                if (data.reason && data.reason.description && data.reason.description.includes('This queue name cannot be used, this queue already exists.')) {
+                    addLogItem(`❌ ${fila.name} - Já existe uma fila com esse nome`, 'error');
+                    showError(`${fila.name} - Já existe uma fila com esse nome`);
+                } else {
+                    addLogItem(`❌ Erro ao clonar fila ${fila.name}: ${data.description || (data.reason && data.reason.description) || data.status}`, 'error');
+                    showError('Erro ao clonar fila: ' + (data.description || (data.reason && data.reason.description) || data.status));
+                }
+                return;
             }
             addLogItem(`✅ Fila de atendimento clonada: ${fila.name}`, 'success');
-        }
-
-        // Função para processar todas as filas
-        async function processarFilas(contrato, authorization, destinoContrato, destinoAuthorization) {
-            // 1. Buscar filas
-            const filasData = await getFilas(contrato, authorization);
-            
-            // 2. Para cada fila, clonar
-            for (const fila of filasData.items) {
-                try {
-                    await setFila(destinoContrato, destinoAuthorization, fila, filasData.type);
-                    
-                    // Pequena pausa entre as requisições
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                } catch (error) {
-                    addLogItem(`❌ Erro ao processar fila ${fila.name}: ${error.message}`, 'error');
-                    // Continua com as próximas filas mesmo se uma falhar
-                }
-            }
         }
 
         // Função para obter variáveis de configuração do bot de origem
@@ -1420,21 +1423,16 @@
                 'Content-Type': 'application/json',
                 'Authorization': authorization
             };
-            addLogItem('📥 Buscando variáveis de configuração do bot de origem...', 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro na requisição de variáveis: ${response.status} ${response.statusText}`);
-            }
             const data = await response.json();
-            if (data.status !== 'success') {
-                throw new Error(`Erro na resposta de variáveis: ${data.status}`);
-            }
-            if (!data.resource) {
-                throw new Error('Resposta de variáveis não contém o resource esperado');
+            if (data.status !== 'success' || !data.resource) {
+                addLogItem('❌ Nenhuma variável de configuração encontrada.', 'error');
+                showError('Nenhuma variável de configuração encontrada.');
+                return null;
             }
             addLogItem('✅ Variáveis de configuração obtidas com sucesso', 'success');
             return data.resource;
@@ -1455,18 +1453,16 @@
                 'Content-Type': 'application/json',
                 'Authorization': destinoAuthorization
             };
-            addLogItem('📤 Clonando variáveis de configuração para o bot de destino...', 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(requestBody)
             });
-            if (!response.ok) {
-                throw new Error(`Erro ao clonar variáveis: ${response.status}`);
-            }
             const data = await response.json();
             if (data.status !== 'success') {
-                throw new Error(`Erro ao clonar variáveis: ${data.status}`);
+                addLogItem(`❌ Erro ao clonar variáveis: ${data.status}`, 'error');
+                showError('Erro ao clonar variáveis: ' + data.status);
+                return;
             }
             addLogItem('✅ Variáveis de configuração clonadas com sucesso', 'success');
         }
