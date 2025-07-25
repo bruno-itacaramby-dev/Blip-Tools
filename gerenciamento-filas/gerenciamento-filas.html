@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FP9VRTNCQM"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-FP9VRTNCQM');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Filas - Blip Tools</title>
+    <style>
+        /* Reset e configurações básicas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Seções principais */
+        .config-section,
+        .results-section,
+        .error-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Títulos das seções */
+        h2 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        /* Formulário */
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+
+        .form-group input {
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Botão principal */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 50px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Spinner de loading */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Informações dos resultados */
+        .results-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .results-info p {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        /* Container de filas */
+        .filas-container {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .filas-header {
+            background: #f7fafc;
+            padding: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filas-header h3 {
+            color: #4a5568;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        /* Lista de filas */
+        .filas-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .fila-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.3s ease;
+        }
+
+        .fila-item:last-child {
+            border-bottom: none;
+        }
+
+        .fila-item:hover {
+            background-color: #f7fafc;
+        }
+
+        .fila-info {
+            flex: 1;
+        }
+
+        .fila-name {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .fila-details {
+            font-size: 0.9rem;
+            color: #718096;
+        }
+
+        .fila-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-action {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #3182ce;
+        }
+
+        .btn-delete {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #e53e3e;
+        }
+
+        /* Seção de erro */
+        .error-section {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+        }
+
+        .error-message h3 {
+            color: #c53030;
+            margin-bottom: 10px;
+        }
+
+        .error-message p {
+            color: #742a2a;
+        }
+
+        /* Seção de progresso */
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .progress-info {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .progress-info p {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .progress-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-bar-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .operacao-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+
+        .log-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-success {
+            color: #38a169;
+        }
+
+        .log-error {
+            color: #e53e3e;
+        }
+
+        .log-info {
+            color: #3182ce;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .config-section,
+            .results-section,
+            .error-section {
+                padding: 20px;
+            }
+            
+            .filas-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            .btn-primary {
+                padding: 12px 20px;
+            }
+
+            .fila-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .fila-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+
+        /* Scrollbar personalizada */
+        .filas-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .filas-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .filas-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .filas-list::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: white;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+
+        .close-button:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-actions {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .modal-footer {
+            background: #f7fafc;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        /* Fila Row Styles */
+        .fila-row {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .fila-inputs {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .fila-name-input,
+        .fila-priority-input {
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .fila-name-input:focus,
+        .fila-priority-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .fila-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .regras-container {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+
+        /* Regra Row Styles */
+        .regra-row {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .regra-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .regra-title-input {
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .regra-title-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .regra-operator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .regra-operator label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+
+        .regra-operator-input {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .regra-operator-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .conditions-container {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .regra-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Condition Row Styles */
+        .condition-row {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .condition-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .condition-inputs textarea {
+            grid-column: 1 / -1;
+            padding: 8px 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            resize: vertical;
+            min-height: 50px;
+        }
+
+        .condition-inputs input,
+        .condition-inputs select {
+            padding: 8px 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .condition-inputs input:focus,
+        .condition-inputs select:focus,
+        .condition-inputs textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .condition-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* Loading e mensagens */
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+
+        .loading-indicator .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .no-rules-message {
+            padding: 20px;
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+        }
+
+        .no-rules-message p {
+            margin: 0;
+        }
+
+        .error-message {
+            padding: 15px;
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            border-radius: 6px;
+            color: #c53030;
+            font-size: 0.9rem;
+        }
+
+        .error-message p {
+            margin: 0;
+        }
+
+        /* Responsividade do Modal */
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+            
+            .modal-body {
+                padding: 20px;
+            }
+            
+            .fila-inputs {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .regra-header {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .condition-inputs {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .modal-footer {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="../index.html" class="back-button">← Voltar</a>
+            <h1>📋 Gerenciamento de Filas</h1>
+            <p>Gerencie filas de atendimento da plataforma Blip</p>
+        </header>
+
+        <main>
+            <!-- Formulário de configuração -->
+            <section class="config-section">
+                <h2>Configuração do Bot</h2>
+                <p style="color: #4a5568; font-size: 0.9rem; margin-bottom: 15px;">Configure as credenciais do bot para gerenciar as filas</p>
+                <div style="border-bottom: 2px solid #e2e8f0; margin-bottom: 15px;"></div>
+                <form id="configForm" class="config-form">
+                    <div class="form-group">
+                        <label for="contrato">Contrato:</label>
+                        <input 
+                            type="text" 
+                            id="contrato" 
+                            name="contrato" 
+                            placeholder="Digite o contrato"
+                            required
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="authorization">Authorization:</label>
+                        <input 
+                            type="text" 
+                            id="authorization" 
+                            name="authorization" 
+                            placeholder="Digite o token de autorização"
+                            required
+                        >
+                        <div id="botIdInfo" style="color:#4a5568; font-size:0.92rem; margin-top:4px; font-weight:500;"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">
+                        <span class="btn-text">Buscar Filas</span>
+                        <span class="btn-loading" style="display: none;">
+                            <div class="spinner"></div>
+                            Buscando...
+                        </span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Seção de resultados -->
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <h2>Filas Encontradas</h2>
+                <div class="results-info">
+                    <p>Total de filas: <span id="totalFilas">0</span></p>
+                </div>
+                
+                <div class="filas-container">
+                    <div class="filas-header">
+                        <h3>FILAS DE ATENDIMENTO</h3>
+                        <button type="button" class="btn-action btn-edit" onclick="openEditModal()">+ Nova Fila</button>
+                    </div>
+                    
+                    <div id="filasList" class="filas-list">
+                        <!-- As filas serão inseridas aqui dinamicamente -->
+                    </div>
+                </div>
+            </section>
+
+
+
+            <!-- Seção de progresso das operações -->
+            <section id="progressSection" class="progress-section" style="display: none;">
+                <h2>Progresso das Operações</h2>
+                <div class="progress-info">
+                    <p>Processando: <span id="currentOperation">-</span></p>
+                    <p>Progresso: <span id="progressCount">0</span> de <span id="totalOperations">0</span></p>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+                
+                <div id="operacaoLog" class="operacao-log">
+                    <!-- Log das operações será inserido aqui -->
+                </div>
+            </section>
+
+            <!-- Seção de erro -->
+            <section id="errorSection" class="error-section" style="display: none;">
+                <div class="error-message">
+                    <h3>❌ Erro</h3>
+                    <p id="errorText"></p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Modal de Edição -->
+        <div id="editModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Editar Fila</h2>
+                    <button class="close-button" onclick="closeEditModal()">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="modal-actions">
+                        <button type="button" class="btn-action btn-edit" onclick="addFilaRow()">+ Nova Fila</button>
+                    </div>
+                    
+                    <div id="filasContainer" class="filas-container-modal">
+                        <!-- Filas serão adicionadas aqui -->
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                    <button type="button" class="btn-primary" id="saveButton" onclick="saveAllChanges()">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos do DOM
+        const configForm = document.getElementById('configForm');
+        const contratoInput = document.getElementById('contrato');
+        const authorizationInput = document.getElementById('authorization');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorSection = document.getElementById('errorSection');
+        const errorText = document.getElementById('errorText');
+        const totalFilas = document.getElementById('totalFilas');
+        const filasList = document.getElementById('filasList');
+        const progressSection = document.getElementById('progressSection');
+        const currentOperation = document.getElementById('currentOperation');
+        const progressCount = document.getElementById('progressCount');
+        const totalOperations = document.getElementById('totalOperations');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const operacaoLog = document.getElementById('operacaoLog');
+
+        // Estado da aplicação
+        let filas = [];
+        let atendentes = [];
+
+        // Event Listeners
+        configForm.addEventListener('submit', handleFormSubmit);
+
+        // Função principal para lidar com o envio do formulário
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            
+            if (!contrato || !authorization) {
+                showError('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+            
+            // Mostrar loading
+            setLoadingState(true);
+            hideError();
+            hideResults();
+            
+            try {
+                const url = `https://${contrato}.http.msging.net/commands`;
+                
+                // Buscar filas
+                const filasResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        "to": "postmaster@desk.msging.net",
+                        method: 'get',
+                        uri: '/attendance-queues'
+                    })
+                });
+                
+                const filasData = await filasResponse.json();
+                
+                if (!filasResponse.ok) {
+                    throw new Error(filasData.error || 'Erro ao buscar filas');
+                }
+                
+                // Buscar atendentes
+                const atendentesResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        "to": "postmaster@desk.msging.net",
+                        method: 'get',
+                        uri: '/attendants'
+                    })
+                });
+                
+                const atendentesData = await atendentesResponse.json();
+                
+                if (!atendentesResponse.ok) {
+                    throw new Error(atendentesData.error || 'Erro ao buscar atendentes');
+                }
+                
+                // Processar os dados recebidos
+                processFilasData(filasData);
+                processAtendentesData(atendentesData);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                
+                // Se for erro de CORS, mostrar mensagem específica
+                if (error.name === 'TypeError' && error.message.includes('CORS')) {
+                    showError('Erro de CORS: O navegador bloqueou a requisição. Use uma extensão para desabilitar CORS ou execute o servidor Node.js.');
+                } else {
+                    showError(error.message || 'Erro ao conectar com o servidor');
+                }
+            } finally {
+                setLoadingState(false);
+            }
+        }
+
+        // Função para processar os dados das filas
+        function processFilasData(data) {
+            try {
+                // Verificar se a resposta tem a estrutura esperada
+                if (!data.resource || !data.resource.items || !Array.isArray(data.resource.items)) {
+                    throw new Error('Formato de resposta inválido');
+                }
+                
+                filas = data.resource.items;
+                const total = data.resource.total || filas.length;
+                
+                // Atualizar interface
+                totalFilas.textContent = total;
+                createFilasList();
+                showResults();
+                
+            } catch (error) {
+                console.error('Erro ao processar dados:', error);
+                showError('Erro ao processar os dados recebidos da API');
+            }
+        }
+
+        // Função para processar os dados dos atendentes
+        function processAtendentesData(data) {
+            try {
+                // Verificar se a resposta tem a estrutura esperada
+                if (!data.resource || !data.resource.items || !Array.isArray(data.resource.items)) {
+                    throw new Error('Formato de resposta inválido');
+                }
+                
+                atendentes = data.resource.items;
+                console.log('Atendentes carregados:', atendentes);
+                
+                // Recriar lista de filas para incluir informações dos atendentes
+                createFilasList();
+                
+            } catch (error) {
+                console.error('Erro ao processar dados dos atendentes:', error);
+                showError('Erro ao processar os dados dos atendentes');
+            }
+        }
+
+        // Função para criar a lista de filas
+        function createFilasList() {
+            filasList.innerHTML = '';
+            
+            filas.forEach((fila, index) => {
+                const filaItem = document.createElement('div');
+                filaItem.className = 'fila-item';
+                
+                const filaInfo = document.createElement('div');
+                filaInfo.className = 'fila-info';
+                
+                const filaName = document.createElement('div');
+                filaName.className = 'fila-name';
+                filaName.textContent = fila.name || 'Sem nome';
+                
+                // Buscar atendentes que pertencem a esta fila
+                const atendentesNaFila = atendentes.filter(atendente => 
+                    atendente.teams && atendente.teams.includes(fila.name)
+                );
+                
+                const filaDetails = document.createElement('div');
+                filaDetails.className = 'fila-details';
+                filaDetails.textContent = `ID: ${fila.id || 'N/A'} | Atendentes: ${atendentesNaFila.length}`;
+                
+                // Adicionar lista de atendentes se houver
+                if (atendentesNaFila.length > 0) {
+                    const atendentesList = document.createElement('div');
+                    atendentesList.className = 'fila-details';
+                    atendentesList.style.fontSize = '0.85rem';
+                    atendentesList.style.color = '#718096';
+                    atendentesList.style.marginTop = '5px';
+                    
+                    const atendentesNomes = atendentesNaFila.map(atendente => 
+                        `${atendente.fullName || atendente.email} (${atendente.status || 'N/A'})`
+                    ).join(', ');
+                    
+                    atendentesList.textContent = `Atendentes: ${atendentesNomes}`;
+                    filaInfo.appendChild(atendentesList);
+                }
+                
+                const filaActions = document.createElement('div');
+                filaActions.className = 'fila-actions';
+                
+                const editButton = document.createElement('button');
+                editButton.className = 'btn-action btn-edit';
+                editButton.textContent = 'Editar';
+                editButton.onclick = () => editFila(fila);
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn-action btn-delete';
+                deleteButton.textContent = 'Excluir';
+                deleteButton.onclick = () => deleteFila(fila);
+                
+                filaInfo.appendChild(filaName);
+                filaInfo.appendChild(filaDetails);
+                filaActions.appendChild(editButton);
+                filaActions.appendChild(deleteButton);
+                filaItem.appendChild(filaInfo);
+                filaItem.appendChild(filaActions);
+                filasList.appendChild(filaItem);
+            });
+        }
+
+
+
+        // Função para editar fila
+        function editFila(fila) {
+            openEditModal(fila);
+        }
+
+        // Função para abrir modal de edição
+        async function openEditModal(fila = null) {
+            const modal = document.getElementById('editModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const filasContainer = document.getElementById('filasContainer');
+            const saveButton = document.getElementById('saveButton');
+            
+            modal.style.display = 'block';
+            
+            if (fila) {
+                modalTitle.textContent = `Editar Fila: ${fila.name}`;
+                // Buscar regras existentes e preencher com dados
+                await populateModalWithExistingData(fila);
+            } else {
+                modalTitle.textContent = 'Criar Nova Fila';
+                clearModalData();
+            }
+        }
+
+        // Função para preencher modal com dados existentes
+        async function populateModalWithExistingData(fila) {
+            clearModalData();
+            
+            // Adicionar fila existente
+            const filaRow = addFilaRow(fila.name, fila.isActive !== false, fila.Priority || '0');
+            
+            // Adicionar indicador de loading
+            const regrasContainer = filaRow.querySelector('.regras-container');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-indicator';
+            loadingDiv.innerHTML = `
+                <div class="spinner"></div>
+                <span>Buscando regras existentes...</span>
+            `;
+            regrasContainer.appendChild(loadingDiv);
+            
+            try {
+                // Buscar regras existentes para esta fila
+                const contrato = contratoInput.value.trim();
+                const authorization = authorizationInput.value.trim();
+                const url = `https://${contrato}.http.msging.net/commands`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        "to": "postmaster@desk.msging.net",
+                        method: 'get',
+                        uri: '/rules'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar regras existentes');
+                }
+                
+                const data = await response.json();
+                
+                // Remover indicador de loading
+                loadingDiv.remove();
+                
+                if (data.resource && data.resource.items) {
+                    // Filtrar regras que pertencem a esta fila
+                    const regrasDaFila = data.resource.items.filter(regra => regra.team === fila.name);
+                    
+                    if (regrasDaFila.length === 0) {
+                        // Mostrar mensagem se não há regras
+                        const noRulesDiv = document.createElement('div');
+                        noRulesDiv.className = 'no-rules-message';
+                        noRulesDiv.innerHTML = '<p>Nenhuma regra encontrada para esta fila.</p>';
+                        regrasContainer.appendChild(noRulesDiv);
+                    } else {
+                        // Adicionar cada regra ao modal
+                        regrasDaFila.forEach(regra => {
+                            addRegraRowWithData(filaRow, regra);
+                        });
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Erro ao buscar regras:', error);
+                loadingDiv.remove();
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.innerHTML = `<p>❌ Erro ao buscar regras: ${error.message}</p>`;
+                regrasContainer.appendChild(errorDiv);
+            }
+        }
+
+        // Função para limpar dados do modal
+        function clearModalData() {
+            const filasContainer = document.getElementById('filasContainer');
+            filasContainer.innerHTML = '';
+            
+            // Adicionar linha padrão
+            addFilaRow();
+        }
+
+        // Função para adicionar linha de fila
+        function addFilaRow(name = '', isActive = true, priority = '0') {
+            const filasContainer = document.getElementById('filasContainer');
+            const filaRow = document.createElement('div');
+            filaRow.className = 'fila-row';
+            filaRow.innerHTML = `
+                <div class="fila-inputs">
+                    <input type="text" placeholder="Nome da fila" value="${name}" class="fila-name-input">
+                    <input type="number" placeholder="Prioridade" value="${priority}" class="fila-priority-input" min="0">
+                    <label class="checkbox-container">
+                        <input type="checkbox" ${isActive ? 'checked' : ''} class="fila-active-input">
+                        <span class="checkmark"></span>
+                        Ativa
+                    </label>
+                </div>
+                <div class="fila-actions">
+                    <button type="button" class="btn-action btn-edit" onclick="addRegraRow(this)">+ Regra</button>
+                    <button type="button" class="btn-action btn-delete" onclick="removeFilaRow(this)">Remover</button>
+                </div>
+                <div class="regras-container">
+                    <!-- Regras serão adicionadas aqui -->
+                </div>
+            `;
+            filasContainer.appendChild(filaRow);
+            return filaRow;
+        }
+
+        // Função para remover linha de fila
+        function removeFilaRow(button) {
+            const filaRow = button.closest('.fila-row');
+            filaRow.remove();
+        }
+
+        // Função para adicionar linha de regra
+        function addRegraRow(button) {
+            const filaRow = button.closest('.fila-row');
+            const regrasContainer = filaRow.querySelector('.regras-container');
+            const regraRow = document.createElement('div');
+            regraRow.className = 'regra-row';
+            
+            // Obter nome da fila para sugestão
+            const filaNameInput = filaRow.querySelector('.fila-name-input');
+            const filaName = filaNameInput.value.trim() || 'Fila';
+            const suggestedTitle = `Regra - ${filaName}`;
+            
+            regraRow.innerHTML = `
+                <div class="regra-header">
+                    <input type="text" placeholder="Título da regra" value="${suggestedTitle}" class="regra-title-input">
+                    <div class="regra-operator">
+                        <label>Operador:</label>
+                        <select class="regra-operator-input">
+                            <option value="And">E (And)</option>
+                            <option value="Or">OU (Or)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="conditions-container">
+                    <!-- Condições serão adicionadas aqui -->
+                </div>
+                <div class="regra-actions">
+                    <button type="button" class="btn-action btn-edit" onclick="addConditionRow(this)">+ Condição</button>
+                    <label class="checkbox-container">
+                        <input type="checkbox" checked class="regra-active-input">
+                        <span class="checkmark"></span>
+                        Ativa
+                    </label>
+                    <button type="button" class="btn-action btn-delete" onclick="removeRegraRow(this)">Remover</button>
+                </div>
+            `;
+            regrasContainer.appendChild(regraRow);
+            
+            // Adicionar primeira condição automaticamente
+            addConditionRow(regraRow.querySelector('.btn-action.btn-edit'));
+        }
+
+        // Função para remover linha de regra
+        async function removeRegraRow(button) {
+            const regraRow = button.closest('.regra-row');
+            const titleInput = regraRow.querySelector('.regra-title-input');
+            const regraTitle = titleInput.value.trim() || 'Regra sem título';
+            
+            if (!confirm(`Tem certeza que deseja excluir a regra "${regraTitle}"?`)) {
+                return;
+            }
+            
+            // Verificar se é uma regra existente (tem ID) ou nova
+            const regraId = regraRow.dataset.regraId;
+            
+            if (regraId) {
+                // Regra existente - excluir via API
+                addLogItem(`🗑️ Excluindo regra: ${regraTitle}`, 'info');
+                
+                try {
+                    const contrato = contratoInput.value.trim();
+                    const authorization = authorizationInput.value.trim();
+                    const url = `https://${contrato}.http.msging.net/commands`;
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authorization
+                        },
+                        body: JSON.stringify({
+                            id: generateGuid(),
+                            "to": "postmaster@desk.msging.net",
+                            method: 'delete',
+                            uri: `/rules/${regraId}`
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        addLogItem(`✅ Regra ${regraTitle} excluída com sucesso`, 'success');
+                        regraRow.remove();
+                    } else {
+                        const errorData = await response.json();
+                        addLogItem(`❌ Erro ao excluir regra ${regraTitle}: ${errorData.description || 'Erro desconhecido'}`, 'error');
+                    }
+                } catch (error) {
+                    addLogItem(`❌ Erro ao excluir regra ${regraTitle}: ${error.message}`, 'error');
+                }
+            } else {
+                // Regra nova - apenas remover do DOM
+                regraRow.remove();
+                addLogItem(`🗑️ Regra ${regraTitle} removida (não salva)`, 'info');
+            }
+        }
+
+        // Função para adicionar linha de condição
+        function addConditionRow(button) {
+            const regraRow = button.closest('.regra-row');
+            const conditionsContainer = regraRow.querySelector('.conditions-container');
+            const conditionRow = document.createElement('div');
+            conditionRow.className = 'condition-row';
+            conditionRow.innerHTML = `
+                <div class="condition-inputs">
+                    <select class="condition-property-type">
+                        <option value="Message">Mensagem</option>
+                        <option value="Contact.Name">Nome contato</option>
+                        <option value="Contact.Email">Email Contato</option>
+                        <option value="Contact.Extras">Extras Contato</option>
+                    </select>
+                    <input type="text" placeholder="Campo extra (se aplicável)" class="condition-extra-field" style="display: none;">
+                    <select class="condition-relation">
+                        <option value="Equals">Equals</option>
+                        <option value="NotEquals">Not Equals</option>
+                        <option value="Contains">Contains</option>
+                        <option value="NotContains">Not Contains</option>
+                        <option value="StartsWith">StartsWith</option>
+                        <option value="EndsWith">EndsWith</option>
+                    </select>
+                    <textarea placeholder="Valores (um por linha)" class="condition-values"></textarea>
+                </div>
+                <div class="condition-actions">
+                    <button type="button" class="btn-action btn-delete" onclick="removeConditionRow(this)">Remover</button>
+                </div>
+            `;
+            conditionsContainer.appendChild(conditionRow);
+            
+            // Adicionar event listener para mostrar/ocultar campo extra
+            const propertyTypeSelect = conditionRow.querySelector('.condition-property-type');
+            const extraField = conditionRow.querySelector('.condition-extra-field');
+            
+            propertyTypeSelect.addEventListener('change', function() {
+                if (this.value === 'Contact.Extras') {
+                    extraField.style.display = 'block';
+                } else {
+                    extraField.style.display = 'none';
+                }
+            });
+        }
+
+        // Função para remover linha de condição
+        function removeConditionRow(button) {
+            const conditionRow = button.closest('.condition-row');
+            conditionRow.remove();
+        }
+
+        // Função para adicionar regra com dados existentes
+        function addRegraRowWithData(filaRow, regraData) {
+            const regrasContainer = filaRow.querySelector('.regras-container');
+            const regraRow = document.createElement('div');
+            regraRow.className = 'regra-row';
+            
+            // Armazenar ID da regra para exclusão
+            if (regraData.id) {
+                regraRow.dataset.regraId = regraData.id;
+            }
+            
+            // Determinar operador (padrão é 'And' se não especificado)
+            const operator = regraData.operator || 'And';
+            
+            // Determinar título da regra (usar existente ou sugerir novo)
+            let regraTitle = regraData.title || '';
+            if (!regraTitle) {
+                const filaNameInput = filaRow.querySelector('.fila-name-input');
+                const filaName = filaNameInput.value.trim() || 'Fila';
+                regraTitle = `Regra - ${filaName}`;
+            }
+            
+            regraRow.innerHTML = `
+                <div class="regra-header">
+                    <input type="text" placeholder="Título da regra" value="${regraTitle}" class="regra-title-input">
+                    <div class="regra-operator">
+                        <label>Operador:</label>
+                        <select class="regra-operator-input">
+                            <option value="And" ${operator === 'And' ? 'selected' : ''}>E (And)</option>
+                            <option value="Or" ${operator === 'Or' ? 'selected' : ''}>OU (Or)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="conditions-container">
+                    <!-- Condições serão adicionadas aqui -->
+                </div>
+                <div class="regra-actions">
+                    <button type="button" class="btn-action btn-edit" onclick="addConditionRow(this)">+ Condição</button>
+                    <label class="checkbox-container">
+                        <input type="checkbox" ${regraData.isActive !== false ? 'checked' : ''} class="regra-active-input">
+                        <span class="checkmark"></span>
+                        Ativa
+                    </label>
+                    <button type="button" class="btn-action btn-delete" onclick="removeRegraRow(this)">Remover</button>
+                </div>
+            `;
+            regrasContainer.appendChild(regraRow);
+            
+            // Adicionar condições existentes
+            if (regraData.conditions && regraData.conditions.length > 0) {
+                // Regra com múltiplas condições
+                regraData.conditions.forEach(condition => {
+                    addConditionRowWithData(regraRow, condition);
+                });
+            } else if (regraData.property && regraData.values) {
+                // Regra simples (formato antigo)
+                const condition = {
+                    property: regraData.property,
+                    relation: regraData.relation || 'Equals',
+                    values: regraData.values
+                };
+                addConditionRowWithData(regraRow, condition);
+            }
+        }
+
+        // Função para adicionar condição com dados existentes
+        function addConditionRowWithData(regraRow, conditionData) {
+            const conditionsContainer = regraRow.querySelector('.conditions-container');
+            const conditionRow = document.createElement('div');
+            conditionRow.className = 'condition-row';
+            
+            // Determinar tipo de propriedade e campo extra
+            let propertyType = conditionData.property;
+            let extraField = '';
+            
+            if (conditionData.property.startsWith('Contact.Extras.')) {
+                propertyType = 'Contact.Extras';
+                extraField = conditionData.property.replace('Contact.Extras.', '');
+            }
+            
+            conditionRow.innerHTML = `
+                <div class="condition-inputs">
+                    <select class="condition-property-type">
+                        <option value="Message" ${propertyType === 'Message' ? 'selected' : ''}>Mensagem</option>
+                        <option value="Contact.Name" ${propertyType === 'Contact.Name' ? 'selected' : ''}>Nome contato</option>
+                        <option value="Contact.Email" ${propertyType === 'Contact.Email' ? 'selected' : ''}>Email Contato</option>
+                        <option value="Contact.Extras" ${propertyType === 'Contact.Extras' ? 'selected' : ''}>Extras Contato</option>
+                    </select>
+                    <input type="text" placeholder="Campo extra (se aplicável)" value="${extraField}" class="condition-extra-field" ${propertyType === 'Contact.Extras' ? '' : 'style="display: none;"'}>
+                    <select class="condition-relation">
+                        <option value="Equals" ${conditionData.relation === 'Equals' ? 'selected' : ''}>Equals</option>
+                        <option value="NotEquals" ${conditionData.relation === 'NotEquals' ? 'selected' : ''}>Not Equals</option>
+                        <option value="Contains" ${conditionData.relation === 'Contains' ? 'selected' : ''}>Contains</option>
+                        <option value="NotContains" ${conditionData.relation === 'NotContains' ? 'selected' : ''}>Not Contains</option>
+                        <option value="StartsWith" ${conditionData.relation === 'StartsWith' ? 'selected' : ''}>StartsWith</option>
+                        <option value="EndsWith" ${conditionData.relation === 'EndsWith' ? 'selected' : ''}>EndsWith</option>
+                    </select>
+                    <textarea placeholder="Valores (um por linha)" class="condition-values">${conditionData.values ? conditionData.values.join('\n') : ''}</textarea>
+                </div>
+                <div class="condition-actions">
+                    <button type="button" class="btn-action btn-delete" onclick="removeConditionRow(this)">Remover</button>
+                </div>
+            `;
+            conditionsContainer.appendChild(conditionRow);
+            
+            // Adicionar event listener para mostrar/ocultar campo extra
+            const propertyTypeSelect = conditionRow.querySelector('.condition-property-type');
+            const extraFieldInput = conditionRow.querySelector('.condition-extra-field');
+            
+            propertyTypeSelect.addEventListener('change', function() {
+                if (this.value === 'Contact.Extras') {
+                    extraFieldInput.style.display = 'block';
+                } else {
+                    extraFieldInput.style.display = 'none';
+                }
+            });
+        }
+
+        // Função para salvar todas as alterações
+        async function saveAllChanges() {
+            const saveButton = document.getElementById('saveButton');
+            const originalText = saveButton.textContent;
+            
+            try {
+                saveButton.disabled = true;
+                saveButton.textContent = 'Salvando...';
+                
+                const filasData = collectFilasData();
+                await processFilasAndRules(filasData);
+                
+                addLogItem('✅ Todas as alterações salvas com sucesso!', 'success');
+                closeEditModal();
+                
+                // Recarregar dados
+                handleFormSubmit(new Event('submit'));
+                
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                addLogItem(`❌ Erro ao salvar: ${error.message}`, 'error');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = originalText;
+            }
+        }
+
+        // Função para coletar dados das filas
+        function collectFilasData() {
+            const filasRows = document.querySelectorAll('.fila-row');
+            const filasData = [];
+            
+            filasRows.forEach(filaRow => {
+                const nameInput = filaRow.querySelector('.fila-name-input');
+                const priorityInput = filaRow.querySelector('.fila-priority-input');
+                const activeInput = filaRow.querySelector('.fila-active-input');
+                const regrasRows = filaRow.querySelectorAll('.regra-row');
+                
+                const fila = {
+                    name: nameInput.value.trim(),
+                    priority: priorityInput.value,
+                    isActive: activeInput.checked,
+                    regras: []
+                };
+                
+                regrasRows.forEach(regraRow => {
+                    const titleInput = regraRow.querySelector('.regra-title-input');
+                    const operatorInput = regraRow.querySelector('.regra-operator-input');
+                    const activeRegraInput = regraRow.querySelector('.regra-active-input');
+                    const conditionsRows = regraRow.querySelectorAll('.condition-row');
+                    
+                    const regra = {
+                        title: titleInput.value.trim(),
+                        operator: operatorInput.value,
+                        isActive: activeRegraInput.checked,
+                        team: fila.name,
+                        conditions: []
+                    };
+                    
+                    // Incluir ID da regra se existir (para atualização)
+                    if (regraRow.dataset.regraId) {
+                        regra.id = regraRow.dataset.regraId;
+                    }
+                    
+                    conditionsRows.forEach(conditionRow => {
+                        const propertyTypeSelect = conditionRow.querySelector('.condition-property-type');
+                        const extraField = conditionRow.querySelector('.condition-extra-field');
+                        const relationSelect = conditionRow.querySelector('.condition-relation');
+                        const valuesTextarea = conditionRow.querySelector('.condition-values');
+                        
+                        let property = propertyTypeSelect.value;
+                        
+                        // Se for Contact.Extras, adicionar o campo extra
+                        if (property === 'Contact.Extras' && extraField.value.trim()) {
+                            property = `Contact.Extras.${extraField.value.trim()}`;
+                        }
+                        
+                        const condition = {
+                            property: property,
+                            relation: relationSelect.value,
+                            values: valuesTextarea.value.split('\n').filter(v => v.trim())
+                        };
+                        
+                        if (condition.property && condition.values.length > 0) {
+                            regra.conditions.push(condition);
+                        }
+                    });
+                    
+                    if (regra.title && regra.conditions.length > 0) {
+                        fila.regras.push(regra);
+                    }
+                });
+                
+                if (fila.name) {
+                    filasData.push(fila);
+                }
+            });
+            
+            return filasData;
+        }
+
+        // Função para processar filas e regras
+        async function processFilasAndRules(filasData) {
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            const url = `https://${contrato}.http.msging.net/commands`;
+            
+            // Obter ownerIdentity do bot
+            const botIdInfo = document.getElementById('botIdInfo');
+            const ownerIdentity = botIdInfo.textContent.replace('Id: ', '').trim() + '@msging.net';
+            
+            for (const fila of filasData) {
+                // Criar/atualizar fila
+                addLogItem(`📝 Processando fila: ${fila.name}`, 'info');
+                
+                const filaResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        "to": "postmaster@desk.msging.net",
+                        method: 'set',
+                        uri: '/attendance-queues',
+                        type: 'application/vnd.iris.desk.attendancequeue+json',
+                        resource: {
+                            isActive: fila.isActive,
+                            name: fila.name,
+                            ownerIdentity: ownerIdentity,
+                            Priority: fila.priority
+                        }
+                    })
+                });
+                
+                if (!filaResponse.ok) {
+                    throw new Error(`Erro ao criar/atualizar fila ${fila.name}`);
+                }
+                
+                addLogItem(`✅ Fila ${fila.name} criada/atualizada com sucesso`, 'success');
+                
+                // Criar/atualizar regras
+                for (const regra of fila.regras) {
+                    addLogItem(`📝 Processando regra: ${regra.title}`, 'info');
+                    
+                    const regraResource = {
+                        id: regra.id || generateGuid(), // Usar ID existente ou gerar novo
+                        isActive: regra.isActive,
+                        team: regra.team,
+                        title: regra.title,
+                        operator: regra.operator,
+                        conditions: regra.conditions
+                    };
+                    
+                    // Se houver apenas uma condição, usar formato simples
+                    if (regra.conditions.length === 1) {
+                        const condition = regra.conditions[0];
+                        regraResource.property = condition.property;
+                        regraResource.relation = condition.relation;
+                        regraResource.values = condition.values;
+                    }
+                    
+                    const regraResponse = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': authorization
+                        },
+                        body: JSON.stringify({
+                            id: generateGuid(),
+                            "to": "postmaster@desk.msging.net",
+                            method: 'set',
+                            uri: '/rules',
+                            type: 'application/vnd.iris.desk.rule+json',
+                            resource: regraResource
+                        })
+                    });
+                    
+                    if (!regraResponse.ok) {
+                        throw new Error(`Erro ao criar/atualizar regra ${regra.title}`);
+                    }
+                    
+                    addLogItem(`✅ Regra ${regra.title} criada/atualizada com sucesso`, 'success');
+                }
+            }
+        }
+
+        // Função para fechar modal
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.style.display = 'none';
+        }
+
+
+
+        // Função para excluir fila
+        async function deleteFila(fila) {
+            // Verificar se há atendentes na fila
+            const atendentesNaFila = atendentes.filter(atendente => 
+                atendente.teams && atendente.teams.includes(fila.name)
+            );
+            
+            let mensagemConfirmacao = `Tem certeza que deseja excluir a fila "${fila.name}"?\n\n⚠️ ATENÇÃO:`;
+            
+            if (atendentesNaFila.length > 0) {
+                const nomesAtendentes = atendentesNaFila.map(atendente => 
+                    atendente.fullName || atendente.email
+                ).join(', ');
+                mensagemConfirmacao += `\n• ${atendentesNaFila.length} atendente(s) será(ão) desvinculado(s) desta fila: ${nomesAtendentes}`;
+            }
+            
+            mensagemConfirmacao += `\n• Todas as regras associadas a esta fila serão excluídas`;
+            
+            if (!confirm(mensagemConfirmacao)) {
+                return;
+            }
+            
+            addLogItem(`🗑️ Excluindo fila: ${fila.name}`, 'info');
+            
+            try {
+                const contrato = contratoInput.value.trim();
+                const authorization = authorizationInput.value.trim();
+                const url = `https://${contrato}.http.msging.net/commands`;
+                
+                // Desvincular atendentes da fila (já identificados na confirmação)
+                
+                if (atendentesNaFila.length > 0) {
+                    addLogItem(`👥 Desvinculando ${atendentesNaFila.length} atendente(s) da fila ${fila.name}`, 'info');
+                    
+                    for (const atendente of atendentesNaFila) {
+                        try {
+                            // Remover a fila do array teams do atendente
+                            const teamsAtualizadas = atendente.teams.filter(team => team !== fila.name);
+                            
+                            const responseAtendente = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': authorization
+                                },
+                                body: JSON.stringify({
+                                    id: generateGuid(),
+                                    "to": "postmaster@desk.msging.net",
+                                    method: 'set',
+                                    uri: '/attendants',
+                                    type: 'application/vnd.iris.desk.attendant+json',
+                                    resource: {
+                                        identity: atendente.identity,
+                                        email: atendente.email,
+                                        teams: teamsAtualizadas
+                                    }
+                                })
+                            });
+                            
+                            if (responseAtendente.ok) {
+                                addLogItem(`✅ Atendente ${atendente.fullName || atendente.email} desvinculado da fila ${fila.name}`, 'success');
+                            } else {
+                                const errorData = await responseAtendente.json();
+                                addLogItem(`❌ Erro ao desvincular atendente ${atendente.fullName || atendente.email}: ${errorData.description || 'Erro desconhecido'}`, 'error');
+                            }
+                        } catch (error) {
+                            addLogItem(`❌ Erro ao desvincular atendente ${atendente.fullName || atendente.email}: ${error.message}`, 'error');
+                        }
+                    }
+                }
+                
+                // Agora excluir a fila
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    },
+                    body: JSON.stringify({
+                        id: generateGuid(),
+                        "to": "postmaster@desk.msging.net",
+                        method: 'delete',
+                        uri: `/attendance-queues/${fila.id}`
+                    })
+                });
+                
+                if (response.ok) {
+                    addLogItem(`✅ Fila ${fila.name} excluída com sucesso`, 'success');
+                    // Recarregar lista de filas
+                    handleFormSubmit(new Event('submit'));
+                } else {
+                    const errorData = await response.json();
+                    addLogItem(`❌ Erro ao excluir fila ${fila.name}: ${errorData.description || 'Erro desconhecido'}`, 'error');
+                }
+            } catch (error) {
+                addLogItem(`❌ Erro ao excluir fila ${fila.name}: ${error.message}`, 'error');
+            }
+        }
+
+        // Função para mostrar loading
+        function setLoadingState(isLoading) {
+            const submitButton = configForm.querySelector('button[type="submit"]');
+            const btnText = submitButton.querySelector('.btn-text');
+            const btnLoading = submitButton.querySelector('.btn-loading');
+            
+            if (isLoading) {
+                submitButton.disabled = true;
+                btnText.style.display = 'none';
+                btnLoading.style.display = 'flex';
+            } else {
+                submitButton.disabled = false;
+                btnText.style.display = 'block';
+                btnLoading.style.display = 'none';
+            }
+        }
+
+        // Função para mostrar resultados
+        function showResults() {
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Função para esconder resultados
+        function hideResults() {
+            resultsSection.style.display = 'none';
+        }
+
+        // Função para mostrar erro
+        function showError(message) {
+            errorText.textContent = message;
+            errorSection.style.display = 'block';
+            errorSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Função para esconder erro
+        function hideError() {
+            errorSection.style.display = 'none';
+        }
+
+        // Função para gerar GUID
+        function generateGuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Função para adicionar item ao log
+        function addLogItem(message, type = 'info') {
+            const logItem = document.createElement('div');
+            logItem.className = `log-item log-${type}`;
+            logItem.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            operacaoLog.appendChild(logItem);
+            operacaoLog.scrollTop = operacaoLog.scrollHeight;
+        }
+
+        // Função para buscar o ID do bot em tempo real
+        let botIdTimeout;
+        async function fetchBotIdInfoRealtime() {
+            clearTimeout(botIdTimeout);
+            const contrato = contratoInput.value.trim();
+            const authorization = authorizationInput.value.trim();
+            const botIdInfo = document.getElementById('botIdInfo');
+            
+            if (!contrato || !authorization) {
+                botIdInfo.textContent = '';
+                return;
+            }
+            
+            botIdTimeout = setTimeout(async () => {
+                try {
+                    const url = `https://${contrato}.http.msging.net/commands`;
+                    const guid = generateGuid();
+                    const requestBody = {
+                        id: guid,
+                        to: 'postmaster@desk.msging.net',
+                        method: 'get',
+                        uri: '/replies'
+                    };
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': authorization
+                    };
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(requestBody)
+                    });
+                    const data = await response.json();
+                    if (data.to && typeof data.to === 'string') {
+                        const id = data.to.split('@')[0];
+                        if (id) {
+                            botIdInfo.innerHTML = `Id: <strong>${id}</strong>`;
+                            return;
+                        }
+                    }
+                    botIdInfo.textContent = '';
+                } catch (e) {
+                    botIdInfo.textContent = '';
+                }
+            }, 200);
+        }
+        contratoInput.addEventListener('input', fetchBotIdInfoRealtime);
+        authorizationInput.addEventListener('input', fetchBotIdInfoRealtime);
+
+        // Log de inicialização
+        console.log('Aplicação Gerenciamento de Filas inicializada');
+    </script>
+</body>
+</html> 
