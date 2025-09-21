@@ -1272,38 +1272,40 @@
             if (!data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
                 throw new Error(`Categoria ${categoriaId} não contém itens válidos`);
             }
-            return data.resource.items[0]; // Retorna o primeiro item da categoria
+            return data.resource.items; // Retorna TODOS os itens da categoria
         }
 
-        // Função para criar/setar resposta pronta no bot de destino
-        async function setRespostaPronta(destinoContrato, destinoAuthorization, resposta) {
+        // Função para criar/setar todas as respostas prontas de uma categoria no bot de destino
+        async function setRespostaPronta(destinoContrato, destinoAuthorization, categoriaId, categoriaNome, respostas) {
             const url = `https://${destinoContrato}.http.msging.net/commands`;
             const guid = generateGuid();
+            
+            // Preparar todos os itens da categoria
+            const items = respostas.map(resposta => ({
+                "id": resposta.id,
+                "category": resposta.category,
+                "name": resposta.name,
+                "document": resposta.document,
+                "type": resposta.type || "text/plain",
+                "isDynamicContent": resposta.isDynamicContent || false
+            }));
+            
             const requestBody = {
                 "id": guid,
                 "method": "set",
                 "to": "postmaster@desk.msging.net",
-                "uri": `/replies/${resposta.id}`,
+                "uri": `/replies/${categoriaId}`,
                 "type": "application/vnd.lime.collection+json",
                 "resource": {
                     "itemType": "application/vnd.iris.desk.custom-reply+json",
-                    "items": [
-                        {
-                            "id": resposta.id,
-                            "category": resposta.category,
-                            "name": resposta.name,
-                            "document": resposta.document,
-                            "type": resposta.type || "text/plain",
-                            "isDynamicContent": resposta.isDynamicContent || false
-                        }
-                    ]
+                    "items": items
                 }
             };
             const headers = {
                 'Content-Type': 'application/json',
                 'Authorization': destinoAuthorization
             };
-            addLogItem(`📤 Clonando resposta pronta: ${resposta.name || resposta.category}...`, 'info');
+            addLogItem(`📤 Clonando categoria "${categoriaNome}" com ${respostas.length} resposta(s)...`, 'info');
             const response = await fetch(url, {
                 method: 'POST',
                 headers: headers,
@@ -1311,11 +1313,11 @@
             });
             const data = await response.json();
             if (data.status !== 'success') {
-                addLogItem(`❌ Erro ao clonar resposta ${resposta.name}: ${data.status}`, 'error');
-                showError('Erro ao clonar resposta pronta: ' + data.status);
+                addLogItem(`❌ Erro ao clonar categoria ${categoriaNome}: ${data.status}`, 'error');
+                showError('Erro ao clonar categoria de respostas prontas: ' + data.status);
                 return;
             }
-            addLogItem(`✅ Resposta pronta clonada: ${resposta.name || resposta.category}`, 'success');
+            addLogItem(`✅ Categoria "${categoriaNome}" clonada com ${respostas.length} resposta(s)`, 'success');
         }
 
         // Função para processar todas as respostas prontas
@@ -1326,11 +1328,11 @@
             // 2. Para cada categoria, buscar detalhes e clonar
             for (const categoria of categorias) {
                 try {
-                    // Buscar detalhes da categoria
-                    const detalhes = await getDetalhesResposta(contrato, authorization, categoria.id);
+                    // Buscar detalhes da categoria (todos os itens)
+                    const respostas = await getDetalhesResposta(contrato, authorization, categoria.id);
                     
-                    // Clonar resposta pronta
-                    await setRespostaPronta(destinoContrato, destinoAuthorization, detalhes);
+                    // Clonar todas as respostas da categoria
+                    await setRespostaPronta(destinoContrato, destinoAuthorization, categoria.id, categoria.category, respostas);
                     
                     // Pequena pausa entre as requisições
                     await new Promise(resolve => setTimeout(resolve, 300));
