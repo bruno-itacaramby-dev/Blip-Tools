@@ -505,6 +505,7 @@
             const body = {
                 "id": generateRandomId(),
                 "method": "delete",
+                "to": "postmaster@crm.msging.net",
                 "uri": `/contacts/${identify}`
             };
             await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
