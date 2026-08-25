@@ -437,6 +437,11 @@
                                 <span class="switch-slider"></span>
                                 Variáveis de Configuração
                             </label>
+                            <label class="switch-label">
+                                <input type="checkbox" id="cbPriorizacao" class="switch-input">
+                                <span class="switch-slider"></span>
+                                Regras de Priorização
+                            </label>
                         </div>
                     </div>
                     
@@ -499,38 +504,6 @@
         configForm.addEventListener('submit', handleFormSubmit);
         destinoForm.addEventListener('submit', handleFormSubmit);
 
-        // Função para processar todas as filas
-        async function processarFilas(contrato, authorization, destinoContrato, destinoAuthorization) {
-            // 1. Buscar filas
-            let filasData;
-            try {
-                filasData = await getFilas(contrato, authorization);
-            } catch (error) {
-                addLogItem(`❌ Erro ao buscar filas: ${error.message}`, 'error');
-                showError('Erro ao buscar filas: ' + error.message);
-                return; // Não há filas para processar, mas não interrompe o restante do processo
-            }
-            if (!filasData.items || filasData.items.length === 0) {
-                addLogItem('⚠️ Nenhuma fila encontrada para clonar.', 'error');
-                showError('Nenhuma fila encontrada para clonar.');
-                return;
-            }
-            // 2. Para cada fila, clonar (exceto Default)
-            for (const fila of filasData.items) {
-                if (fila.name && fila.name.toLowerCase() === 'default') {
-                    addLogItem('⏭️ Fila Default ignorada.', 'info');
-                    continue;
-                }
-                try {
-                    await setFila(destinoContrato, destinoAuthorization, fila, filasData.type);
-                    // Pequena pausa entre as requisições
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                } catch (error) {
-                    addLogItem(`❌ Erro ao processar fila ${fila.name}: ${error.message}`, 'error');
-                    // Continua com as próximas filas mesmo se uma falhar
-                }
-            }
-        }
 
         // Função principal para lidar com o envio do formulário
         async function handleFormSubmit(event) {
@@ -567,9 +540,10 @@
                 const respostasSwitch = document.getElementById('cbRespostas').checked;
                 const tagsSwitch = document.getElementById('cbTags').checked;
                 const variaveisSwitch = document.getElementById('cbVariaveis').checked;
+                const priorizacaoSwitch = document.getElementById('cbPriorizacao').checked;
                 
                 let progressStep = 0;
-                const totalSteps = [fluxoSwitch, filasSwitch, regrasSwitch, atendentesSwitch, respostasSwitch, tagsSwitch, variaveisSwitch].filter(Boolean).length;
+                const totalSteps = [fluxoSwitch, filasSwitch, regrasSwitch, atendentesSwitch, respostasSwitch, tagsSwitch, variaveisSwitch, priorizacaoSwitch].filter(Boolean).length;
                 const progressIncrement = totalSteps > 0 ? 100 / totalSteps : 0;
                 
                 // 1. FLUXO (só se switch estiver ON)
@@ -593,17 +567,7 @@
                 // 3. REGRAS DE ATENDIMENTO
                 if (regrasSwitch) {
                     updateProgress('Processando...', 'Clonando regras de atendimento', progressStep);
-                    addLogItem('📥 Buscando regras de atendimento...', 'info');
-                    const regras = await getRegrasAtendimento(contrato, authorization);
-                    
-                    for (const regra of regras) {
-                        try {
-                            await setRegraAtendimento(destinoContrato, destinoAuthorization, regra);
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                        } catch (error) {
-                            addLogItem(`❌ Erro ao clonar regra ${regra.title}: ${error.message}`, 'error');
-                        }
-                    }
+                    await processarRegrasAtendimento(contrato, authorization, destinoContrato, destinoAuthorization);
                     progressStep += progressIncrement;
                 }
                 
@@ -653,6 +617,13 @@
                     progressStep += progressIncrement;
                 }
                 
+                // 8. REGRAS DE PRIORIZAÇÃO
+                if (priorizacaoSwitch) {
+                    updateProgress('Processando...', 'Espelhando regras de priorização', progressStep);
+                    await processarRegrasPriorizacao(contrato, authorization, destinoContrato, destinoAuthorization);
+                    progressStep += progressIncrement;
+                }
+
                 // Sucesso!
                 updateProgress('Concluído!', 'Clonagem finalizada com sucesso', 100);
                 addLogItem('🎉 Clonagem concluída com sucesso!', 'success');
@@ -934,8 +905,9 @@
         // Função para mostrar erro (acumula erros)
         function showError(message) {
             // Adiciona o novo erro ao conteúdo existente
-            const current = errorText.innerHTML;
-            errorText.innerHTML = (current ? current + '<br>' : '') + message;
+            // a mensagem pode vir da API, entao nao pode virar markup
+            if (errorText.textContent) errorText.appendChild(document.createElement('br'));
+            errorText.appendChild(document.createTextNode(message));
             errorSection.style.display = 'block';
             errorSection.scrollIntoView({ behavior: 'smooth' });
         }
@@ -991,34 +963,6 @@
             });
         }
 
-        // Função para obter regras de atendimento do bot de origem
-        async function getRegrasAtendimento(contrato, authorization) {
-            const url = `https://${contrato}.http.msging.net/commands`;
-            const guid = generateGuid();
-            const requestBody = {
-                "id": guid,
-                "to": "postmaster@desk.msging.net",
-                "method": "get",
-                "uri": "/rules"
-            };
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': authorization
-            };
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
-            });
-            const data = await response.json();
-            if (data.status !== 'success' || !data.resource || !Array.isArray(data.resource.items) || data.resource.items.length === 0) {
-                addLogItem('❌Nenhuma regra de atendimento encontrada', 'error');
-                showError('Nenhuma regra de atendimento encontrada.');
-                return [];
-            }
-            addLogItem(`✅ ${data.resource.items.length} regra(s) de atendimento obtida(s) com sucesso`, 'success');
-            return data.resource.items;
-        }
 
         // Função para obter atendentes do bot de origem
         async function getAtendentes(contrato, authorization) {
@@ -1084,58 +1028,6 @@
             addLogItem(`✅ Atendente clonado: ${atendente.fullName || atendente.identity}`, 'success');
         }
 
-        // Função para criar/setar regra de atendimento no bot de destino
-        async function setRegraAtendimento(destinoContrato, destinoAuthorization, regra) {
-            const url = `https://${destinoContrato}.http.msging.net/commands`;
-            const guid = generateGuid();
-            // Extrair os valores das condições (pode ter múltiplas condições)
-            const values = [];
-            if (regra.conditions && Array.isArray(regra.conditions)) {
-                regra.conditions.forEach(condition => {
-                    if (condition.values && Array.isArray(condition.values)) {
-                        values.push(...condition.values);
-                    }
-                });
-            }
-            const requestBody = {
-                "id": guid,
-                "to": "postmaster@desk.msging.net",
-                "method": "set",
-                "uri": "/rules",
-                "type": "application/vnd.iris.desk.rule+json",
-                "resource": {
-                    "id": generateGuid(), // Novo ID para a regra no destino
-                    "isActive": regra.isActive || false,
-                    "property": regra.conditions && regra.conditions[0] ? regra.conditions[0].property : "Contact.Extras.filaAtendimento",
-                    "relation": regra.conditions && regra.conditions[0] ? regra.conditions[0].relation : "Equals",
-                    "team": regra.team || "",
-                    "title": regra.title || "",
-                    "values": values
-                }
-            };
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': destinoAuthorization
-            };
-            addLogItem(`📤 Clonando regra de atendimento: ${regra.title}...`, 'info');
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
-            });
-            const data = await response.json();
-            if (data.status !== 'success') {
-                if (data.reason && data.reason.description && data.reason.description.includes('Attendance queue not found for the specified resource.')) {
-                    addLogItem(`❌ Regra (${regra.title}) -> Fila (${regra.team}) - Fila não existe`, 'error');
-                    showError(`Regra (${regra.title}) -> Fila (${regra.team}) - Fila não existe`);
-                } else {
-                    addLogItem(`❌ Erro ao clonar regra ${regra.title}: ${data.description || (data.reason && data.reason.description) || data.status}`, 'error');
-                    showError('Erro ao clonar regra: ' + (data.description || (data.reason && data.reason.description) || data.status));
-                }
-                return;
-            }
-            addLogItem(`✅ Regra de atendimento clonada: ${regra.title}`, 'success');
-        }
 
         // Função para obter tags do bot de origem
         async function getTags(contrato, authorization) {
@@ -1344,83 +1236,669 @@
             }
         }
 
-        // Função para obter filas de atendimento do bot de origem
-        async function getFilas(contrato, authorization) {
-            const url = `https://${contrato}.http.msging.net/commands`;
-            const guid = generateGuid();
-            const requestBody = {
-                "id": guid,
-                "to": "postmaster@desk.msging.net",
-                "method": "get",
-                "uri": "/attendance-queues"
-            };
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': authorization
-            };
-            addLogItem('📥 Buscando filas de atendimento do bot de origem...', 'info');
-            const response = await fetch(url, {
+
+
+
+        /* ==================================================================
+           ESPELHAMENTO IDEMPOTENTE
+           ------------------------------------------------------------------
+           Rodar N vezes tem que dar sempre o mesmo resultado. Para isso a
+           comparação nunca pode incluir campos que o servidor gera (id,
+           ownerIdentity, storageDate, priority, queueId) nem campos que a
+           gente manda no set mas que o get não devolve (conditions[].id,
+           extrasProperty, errorExtras, errorValues). Se qualquer um deles
+           entrar na assinatura, toda regra parece diferente e acaba sendo
+           reescrita em toda rodada.
+           ================================================================== */
+
+        const DESK = 'postmaster@desk.msging.net';
+        // O $take PRECISA do cifrão. Sem ele a Blip ignora o parâmetro em
+        // silêncio e devolve só os 100 primeiros itens.
+        const PAGE_SIZE = 500;
+        const WRITE_DELAY = 120;
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Envia um comando LIME e devolve o envelope de resposta cru.
+        async function deskCommand(contrato, authorization, body) {
+            const response = await fetch(`https://${contrato}.http.msging.net/commands`, {
                 method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
+                headers: { 'Content-Type': 'application/json', 'Authorization': authorization },
+                body: JSON.stringify(Object.assign({ id: generateGuid() }, body))
             });
-            const data = await response.json();
-            if (data.status !== 'success') {
-                addLogItem(`❌ Erro na resposta de filas: ${data.status}`, 'error');
-                showError('Erro na resposta de filas: ' + data.status);
-                throw new Error('Erro na resposta de filas: ' + data.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${response.statusText}`);
             }
-            if (!data.resource || !Array.isArray(data.resource.items)) {
-                addLogItem('❌ Resposta de filas não contém o array esperado', 'error');
-                showError('Resposta de filas não contém o array esperado');
-                throw new Error('Resposta de filas não contém o array esperado');
+            return await response.json();
+        }
+
+        function reasonOf(data) {
+            return (data && data.reason && data.reason.description) || (data && data.status) || 'erro desconhecido';
+        }
+
+        // A Blip responde "resource not found" (code 67) quando o bot nunca
+        // usou aquele recurso. Isso significa zero itens, não erro.
+        function isEmptyResource(data) {
+            if (!data || data.status !== 'failure') return false;
+            const code = data.reason && data.reason.code;
+            const desc = (data.reason && data.reason.description) || '';
+            return code === 67 || /not found/i.test(desc);
+        }
+
+        // Lê uma coleção do Desk inteira. Se não conseguir ler tudo, aborta:
+        // um espelho calculado em cima de leitura parcial apagaria dados bons
+        // do destino.
+        async function deskGetAll(contrato, authorization, uri) {
+            const items = [];
+            let skip = 0;
+            let total = null;
+
+            for (let pagina = 0; pagina < 50; pagina++) {
+                const sep = uri.indexOf('?') === -1 ? '?' : '&';
+                const data = await deskCommand(contrato, authorization, {
+                    to: DESK,
+                    method: 'get',
+                    uri: `${uri}${sep}$skip=${skip}&$take=${PAGE_SIZE}`
+                });
+
+                if (isEmptyResource(data)) return [];
+                if (data.status !== 'success') throw new Error(`${uri}: ${reasonOf(data)}`);
+
+                const page = (data.resource && data.resource.items) || [];
+                if (total === null) {
+                    total = (data.resource && typeof data.resource.total === 'number')
+                        ? data.resource.total
+                        : page.length;
+                }
+                items.push.apply(items, page);
+                if (page.length === 0 || items.length >= total) break;
+                skip += PAGE_SIZE;
             }
-            addLogItem(`✅ ${data.resource.items.length} fila(s) de atendimento encontrada(s)`, 'success');
+
+            if (total !== null && items.length !== total) {
+                throw new Error(`${uri}: leitura incompleta (${items.length} de ${total}) - abortado para não apagar dados por engano`);
+            }
+            return items;
+        }
+
+        // Descobre o identity do bot autenticado pelo campo "to" de qualquer
+        // resposta. Não usa o DOM de propósito: o #destinoBotIdInfo é
+        // preenchido por um setTimeout com debounce e pode estar vazio na
+        // hora do submit.
+        async function getBotIdentity(contrato, authorization) {
+            const data = await deskCommand(contrato, authorization, { to: DESK, method: 'get', uri: '/replies' });
+            if (!data.to || typeof data.to !== 'string') {
+                throw new Error('não foi possível identificar o bot (confira o contrato e o Authorization)');
+            }
+            return data.to.split('/')[0].split('@')[0] + '@msging.net';
+        }
+
+        // Normalização usada SÓ nas dimensões que a ferramenta se recusa a
+        // reescrever (nome de fila). Título e conteúdo são comparados exatos,
+        // senão o espelho nunca corrigiria uma diferença de caixa no destino.
+        function normalizeName(valor) {
+            return String(valor == null ? '' : valor)
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        // Formato canônico das condições, só para comparar. O values é um
+        // conjunto (OR), então a ordem não é semântica: ordenar evita
+        // reescrever a regra à toa caso o servidor devolva em outra ordem.
+        function canonConditions(conditions) {
+            const lista = (Array.isArray(conditions) ? conditions : []).map(c => {
+                const values = (Array.isArray(c.values) ? c.values : []).map(v => String(v));
+                values.sort();
+                return {
+                    property: String(c.property || ''),
+                    relation: String(c.relation || ''),
+                    values: values
+                };
+            });
+            lista.sort((a, b) => {
+                const sa = JSON.stringify(a), sb = JSON.stringify(b);
+                return sa < sb ? -1 : (sa > sb ? 1 : 0);
+            });
+            return lista;
+        }
+
+        // Diff de multiset: agrupa origem e destino por assinatura e casa por
+        // contagem. O que sobra na origem vira criação, o que sobra no destino
+        // vira remoção, empate não mexe. Como é por contagem, título repetido
+        // não faz o resultado oscilar entre uma rodada e outra.
+        function diffBySignature(itensOrigem, itensDestino, sigOrigem, sigDestino) {
+            const porSigOrigem = new Map();
+            const porSigDestino = new Map();
+
+            itensOrigem.forEach(item => {
+                const s = sigOrigem(item);
+                if (!porSigOrigem.has(s)) porSigOrigem.set(s, []);
+                porSigOrigem.get(s).push(item);
+            });
+            itensDestino.forEach(item => {
+                const s = sigDestino(item);
+                if (!porSigDestino.has(s)) porSigDestino.set(s, []);
+                porSigDestino.get(s).push(item);
+            });
+
+            const criar = [], deletar = [];
+            let iguais = 0;
+
+            new Set([...porSigOrigem.keys(), ...porSigDestino.keys()]).forEach(s => {
+                const origem = porSigOrigem.get(s) || [];
+                // ordena por id para a escolha de quem sobra ser reproduzível
+                const destino = (porSigDestino.get(s) || []).slice()
+                    .sort((a, b) => String(a.id) < String(b.id) ? -1 : 1);
+
+                iguais += Math.min(origem.length, destino.length);
+                if (origem.length > destino.length) criar.push.apply(criar, origem.slice(destino.length));
+                if (destino.length > origem.length) deletar.push.apply(deletar, destino.slice(origem.length));
+            });
+
+            return { criar, deletar, iguais };
+        }
+
+        // Casa uma criação com uma remoção que são a mesma regra, só que
+        // alterada, e transforma o par num update. Assim o destino é corrigido
+        // no lugar em vez de perder o id da regra. O pareamento usa a chave
+        // normalizada (tolerante) enquanto a assinatura usa o valor exato
+        // (precisa) — é essa separação que permite o espelho corrigir o texto
+        // do título no destino.
+        function pairIntoUpdates(criar, deletar, chaveOrigem, chaveDestino) {
+            const porChave = new Map();
+            deletar.forEach(item => {
+                const k = chaveDestino(item);
+                if (!porChave.has(k)) porChave.set(k, []);
+                porChave.get(k).push(item);
+            });
+            porChave.forEach(lista => lista.sort((a, b) => String(a.id) < String(b.id) ? -1 : 1));
+
+            const atualizar = [], criarRestante = [], usados = new Set();
+
+            criar.slice()
+                .sort((a, b) => {
+                    const ka = chaveOrigem(a), kb = chaveOrigem(b);
+                    return ka < kb ? -1 : (ka > kb ? 1 : 0);
+                })
+                .forEach(item => {
+                    const candidatos = porChave.get(chaveOrigem(item)) || [];
+                    const alvo = candidatos.find(d => !usados.has(d.id));
+                    if (alvo) {
+                        usados.add(alvo.id);
+                        atualizar.push({ origem: item, destino: alvo });
+                    } else {
+                        criarRestante.push(item);
+                    }
+                });
+
             return {
-                type: data.type,
-                items: data.resource.items
+                atualizar,
+                criar: criarRestante,
+                deletar: deletar.filter(d => !usados.has(d.id))
             };
         }
 
-        // Função para criar/setar fila de atendimento no bot de destino
-        async function setFila(destinoContrato, destinoAuthorization, fila, type) {
-            const url = `https://${destinoContrato}.http.msging.net/commands`;
-            const guid = generateGuid();
-            const requestBody = {
-                "id": guid,
-                "to": "postmaster@desk.msging.net",
-                "method": "set",
-                "uri": "/attendance-queues",
-                "type": "application/vnd.iris.desk.attendancequeue+json",
-                "resource": {
-                    "isActive": fila.isActive || false,
-                    "name": fila.name || "",
-                    "ownerIdentity": fila.ownerIdentity || "",
-                    "Priority": fila.Priority || 0
+        /* ---------------- Filas ---------------- */
+
+        // Monta o mapa nome-normalizado -> fila. Colisão de normalização é
+        // corrupção silenciosa em potencial (a regra iria parar na fila
+        // errada), então prefere abortar.
+        function buildQueueMap(filas, rotulo) {
+            const mapa = new Map();
+            filas.forEach(fila => {
+                const chave = normalizeName(fila.name);
+                if (mapa.has(chave)) {
+                    throw new Error(`o bot de ${rotulo} tem duas filas que se confundem: "${mapa.get(chave).name}" e "${fila.name}"`);
                 }
-            };
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': destinoAuthorization
-            };
-            addLogItem(`📤 Clonando fila de atendimento: ${fila.name}...`, 'info');
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(requestBody)
+                mapa.set(chave, fila);
             });
-            const data = await response.json();
-            if (data.status !== 'success') {
-                if (data.reason && data.reason.description && data.reason.description.includes('This queue name cannot be used, this queue already exists.')) {
-                    addLogItem(`❌ ${fila.name} - Já existe uma fila com esse nome`, 'error');
-                    showError(`${fila.name} - Já existe uma fila com esse nome`);
-                } else {
-                    addLogItem(`❌ Erro ao clonar fila ${fila.name}: ${data.description || (data.reason && data.reason.description) || data.status}`, 'error');
-                    showError('Erro ao clonar fila: ' + (data.description || (data.reason && data.reason.description) || data.status));
+            return mapa;
+        }
+
+        // Cria no destino só as filas que faltam. Fila que já existe nunca é
+        // recriada, e fila nenhuma é apagada: excluir fila é destrutivo em
+        // cascata (desvincula atendentes e apaga as regras associadas).
+        async function ensureQueues(destinoContrato, destinoAuthorization, ownerDestino, filasNecessarias, mapaDestino) {
+            let criadas = 0;
+
+            for (const fila of filasNecessarias) {
+                if (mapaDestino.has(normalizeName(fila.name))) continue;
+
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK,
+                    method: 'set',
+                    uri: '/attendance-queues',
+                    type: 'application/vnd.iris.desk.attendancequeue+json',
+                    resource: {
+                        name: fila.name,
+                        isActive: fila.isActive !== false,
+                        ownerIdentity: ownerDestino,
+                        Priority: fila.Priority || 0
+                    }
+                });
+
+                if (data.status !== 'success') {
+                    throw new Error(`falha ao criar a fila "${fila.name}": ${reasonOf(data)}`);
                 }
-                return;
+                criadas++;
+                addLogItem(`✅ Fila criada no destino: ${fila.name}`, 'success');
+                await sleep(WRITE_DELAY);
             }
-            addLogItem(`✅ Fila de atendimento clonada: ${fila.name}`, 'success');
+
+            return criadas;
+        }
+
+        /* ---------------- Regras de priorização ---------------- */
+
+        // A fila entra normalizada (não reescrevemos fila); título e conteúdo
+        // entram exatos, para o espelho conseguir corrigi-los no destino.
+        function priorityRuleSignature(regra, queueName) {
+            return JSON.stringify([
+                normalizeName(queueName),
+                String(regra.title == null ? '' : regra.title),
+                !!regra.isActive,
+                Number(regra.urgency) || 0,
+                regra.applyConditions !== false,
+                String(regra.operator || 'Or'),
+                canonConditions(regra.conditions)
+            ]);
+        }
+
+        // Reconstrói as condições no formato que o set espera. O
+        // extrasProperty é omitido quando a propriedade não é um extra:
+        // mandar "" pode reprovar na validação ou fazer o portal desenhar um
+        // seletor de campo customizado vazio.
+        function buildConditionsForSet(conditions) {
+            return (Array.isArray(conditions) ? conditions : []).map(c => {
+                const condicao = {
+                    id: generateGuid(),
+                    property: String(c.property || ''),
+                    relation: String(c.relation || ''),
+                    values: (Array.isArray(c.values) ? c.values : []).map(v => String(v)),
+                    errorExtras: 'false',
+                    errorValues: 'false'
+                };
+                const prefixo = 'Contact.Extras.';
+                if (condicao.property.indexOf(prefixo) === 0) {
+                    condicao.extrasProperty = condicao.property.substring(prefixo.length);
+                }
+                return condicao;
+            });
+        }
+
+        // id vazio cria, id preenchido atualiza aquela regra.
+        function buildPriorityRulePayload(regra, queueIdDestino, idDestino) {
+            return {
+                id: idDestino || '',
+                queueId: queueIdDestino,
+                isActive: !!regra.isActive,
+                urgency: Number(regra.urgency) || 0,
+                applyConditions: regra.applyConditions !== false,
+                title: String(regra.title == null ? '' : regra.title),
+                conditions: buildConditionsForSet(regra.conditions),
+                operator: String(regra.operator || 'Or')
+            };
+        }
+
+        async function processarRegrasPriorizacao(contrato, authorization, destinoContrato, destinoAuthorization) {
+            addLogItem('📥 Lendo filas e regras de priorização dos dois bots...', 'info');
+
+            // Primeira coisa: identificar os dois bots. Se o Authorization
+            // estiver errado, falha aqui, antes de qualquer escrita.
+            const ownerOrigem = await getBotIdentity(contrato, authorization);
+            const ownerDestino = await getBotIdentity(destinoContrato, destinoAuthorization);
+            if (ownerOrigem === ownerDestino) {
+                throw new Error('origem e destino são o mesmo bot - clonagem cancelada');
+            }
+
+            const filasOrigem = await deskGetAll(contrato, authorization, '/attendance-queues');
+            let filasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/attendance-queues');
+            buildQueueMap(filasOrigem, 'origem');
+            let mapaDestino = buildQueueMap(filasDestino, 'destino');
+            const filaOrigemPorId = new Map(filasOrigem.map(f => [f.id, f]));
+
+            const regrasOrigem = await deskGetAll(contrato, authorization, '/priority-rules');
+            const regrasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/priority-rules');
+            addLogItem(`✅ Origem: ${regrasOrigem.length} regra(s) de priorização | Destino: ${regrasDestino.length}`, 'info');
+
+            // Regra cuja fila já não existe mais na origem não tem nome para
+            // resolver, então fica de fora do diff.
+            const regrasValidas = [];
+            regrasOrigem.forEach(regra => {
+                if (filaOrigemPorId.has(regra.queueId)) {
+                    regrasValidas.push(regra);
+                } else {
+                    addLogItem(`⏭️ Regra "${regra.title}" ignorada: a fila dela não existe mais na origem`, 'info');
+                }
+            });
+
+            // Cria só as filas que as regras realmente precisam.
+            const filasNecessarias = [];
+            const jaVistas = new Set();
+            regrasValidas.forEach(regra => {
+                const fila = filaOrigemPorId.get(regra.queueId);
+                const chave = normalizeName(fila.name);
+                if (!jaVistas.has(chave)) {
+                    jaVistas.add(chave);
+                    filasNecessarias.push(fila);
+                }
+            });
+
+            const filasCriadas = await ensureQueues(destinoContrato, destinoAuthorization, ownerDestino, filasNecessarias, mapaDestino);
+            if (filasCriadas > 0) {
+                filasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/attendance-queues');
+                mapaDestino = buildQueueMap(filasDestino, 'destino');
+            }
+            const filaDestinoPorId = new Map(filasDestino.map(f => [f.id, f]));
+
+            const nomeFilaOrigem = regra => (filaOrigemPorId.get(regra.queueId) || {}).name || '';
+            const nomeFilaDestino = regra => (filaDestinoPorId.get(regra.queueId) || {}).name || '';
+
+            const diff = diffBySignature(
+                regrasValidas,
+                regrasDestino,
+                regra => priorityRuleSignature(regra, nomeFilaOrigem(regra)),
+                regra => priorityRuleSignature(regra, nomeFilaDestino(regra))
+            );
+            const plano = pairIntoUpdates(
+                diff.criar,
+                diff.deletar,
+                regra => normalizeName(nomeFilaOrigem(regra)) + '||' + normalizeName(regra.title),
+                regra => normalizeName(nomeFilaDestino(regra)) + '||' + normalizeName(regra.title)
+            );
+
+            if (regrasValidas.length === 0 && plano.deletar.length > 0) {
+                addLogItem(`⚠️ A origem não tem regras de priorização: as ${plano.deletar.length} do destino serão removidas`, 'error');
+            }
+            // Rede de segurança: dá para recuperar o estado anterior pelo DevTools.
+            console.log('Snapshot das regras de priorização do destino, antes das mudanças:', JSON.stringify(regrasDestino));
+
+            let removidas = 0, atualizadas = 0, criadas = 0;
+
+            // Ordem delete -> update -> create: compacta a lista antes de
+            // inserir, então a ordem final no destino acompanha a da origem.
+            for (const regra of plano.deletar) {
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK, method: 'delete', uri: `/priority-rules/${regra.id}`
+                });
+                if (data.status === 'success') {
+                    removidas++;
+                    addLogItem(`🗑️ Regra removida do destino: ${regra.title}`, 'info');
+                } else {
+                    addLogItem(`❌ Erro ao remover a regra "${regra.title}": ${reasonOf(data)}`, 'error');
+                    showError(`Erro ao remover a regra "${regra.title}": ${reasonOf(data)}`);
+                }
+                await sleep(WRITE_DELAY);
+            }
+
+            const gravar = async (regraOrigem, idDestino, verbo) => {
+                const fila = mapaDestino.get(normalizeName(nomeFilaOrigem(regraOrigem)));
+                if (!fila) {
+                    addLogItem(`❌ Regra "${regraOrigem.title}" ignorada: fila "${nomeFilaOrigem(regraOrigem)}" não encontrada no destino`, 'error');
+                    return false;
+                }
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK,
+                    method: 'set',
+                    uri: '/priority-rules',
+                    type: 'application/vnd.iris.desk.priority-rules+json',
+                    resource: buildPriorityRulePayload(regraOrigem, fila.id, idDestino)
+                });
+                if (data.status !== 'success') {
+                    addLogItem(`❌ Erro ao ${verbo} a regra "${regraOrigem.title}": ${reasonOf(data)}`, 'error');
+                    showError(`Erro ao ${verbo} a regra "${regraOrigem.title}": ${reasonOf(data)}`);
+                    return false;
+                }
+                await sleep(WRITE_DELAY);
+                return true;
+            };
+
+            for (const par of plano.atualizar) {
+                if (await gravar(par.origem, par.destino.id, 'atualizar')) {
+                    atualizadas++;
+                    addLogItem(`📤 Regra atualizada no destino: ${par.origem.title}`, 'success');
+                }
+            }
+
+            for (const regra of plano.criar) {
+                if (await gravar(regra, '', 'criar')) {
+                    criadas++;
+                    addLogItem(`📤 Regra criada no destino: ${regra.title}`, 'success');
+                }
+            }
+
+            addLogItem(`✅ Priorização: ${criadas} criada(s), ${atualizadas} atualizada(s), ${diff.iguais} já idêntica(s), ${removidas} removida(s)`, 'success');
+
+            // Confere o espelho de fato, em vez de só torcer para ter dado certo.
+            await verificarEspelhoPriorizacao(contrato, authorization, destinoContrato, destinoAuthorization, regrasValidas, nomeFilaOrigem);
+        }
+
+        // Relê o destino e compara o multiset de assinaturas com o da origem.
+        // É o que pega, por exemplo, um update que na verdade criou.
+        async function verificarEspelhoPriorizacao(contrato, authorization, destinoContrato, destinoAuthorization, regrasOrigem, nomeFilaOrigem) {
+            try {
+                const filasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/attendance-queues');
+                const filaDestinoPorId = new Map(filasDestino.map(f => [f.id, f]));
+                const regrasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/priority-rules');
+
+                const conta = (lista, nomeDe) => {
+                    const mapa = new Map();
+                    lista.forEach(regra => {
+                        const s = priorityRuleSignature(regra, nomeDe(regra));
+                        mapa.set(s, (mapa.get(s) || 0) + 1);
+                    });
+                    return mapa;
+                };
+
+                const esperado = conta(regrasOrigem, nomeFilaOrigem);
+                const obtido = conta(regrasDestino, regra => (filaDestinoPorId.get(regra.queueId) || {}).name || '');
+
+                let divergencias = 0;
+                new Set([...esperado.keys(), ...obtido.keys()]).forEach(s => {
+                    divergencias += Math.abs((esperado.get(s) || 0) - (obtido.get(s) || 0));
+                });
+
+                if (divergencias === 0) {
+                    addLogItem(`✅ Espelho verificado: ${regrasDestino.length} regra(s) de priorização idênticas à origem`, 'success');
+                } else {
+                    addLogItem(`⚠️ Espelho com ${divergencias} divergência(s) residual(is) - rode de novo para conferir`, 'error');
+                    showError(`Espelho de priorização com ${divergencias} divergência(s) residual(is).`);
+                }
+            } catch (error) {
+                addLogItem(`⚠️ Não foi possível verificar o espelho: ${error.message}`, 'error');
+            }
+        }
+
+        /* ---------------- Filas de atendimento ---------------- */
+
+        // Cria no destino as filas que faltam e não mexe no resto. Fila que já
+        // existe nunca é recriada nem apagada — excluir fila é destrutivo em
+        // cascata (desvincula atendentes e apaga as regras associadas).
+        async function processarFilas(contrato, authorization, destinoContrato, destinoAuthorization) {
+            const ownerDestino = await getBotIdentity(destinoContrato, destinoAuthorization);
+
+            addLogItem('📥 Buscando filas de atendimento do bot de origem...', 'info');
+            const filasOrigem = await deskGetAll(contrato, authorization, '/attendance-queues');
+            const filasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/attendance-queues');
+            addLogItem(`✅ Origem: ${filasOrigem.length} fila(s) | Destino: ${filasDestino.length}`, 'info');
+
+            const mapaDestino = buildQueueMap(filasDestino, 'destino');
+            let criadas = 0, mantidas = 0;
+
+            for (const fila of filasOrigem) {
+                const existente = mapaDestino.get(normalizeName(fila.name));
+
+                if (existente) {
+                    mantidas++;
+                    // Divergência é só reportada: alterar uma fila em uso é
+                    // decisão do operador, não da ferramenta.
+                    const ativoDiferente = (existente.isActive !== false) !== (fila.isActive !== false);
+                    const prioridadeDiferente = (existente.Priority || 0) !== (fila.Priority || 0);
+                    if (ativoDiferente || prioridadeDiferente) {
+                        addLogItem(`⏭️ Fila "${fila.name}" já existe (mantida) - atenção: isActive/Priority diferem da origem`, 'info');
+                    } else {
+                        addLogItem(`⏭️ Fila "${fila.name}" já existe - mantida`, 'info');
+                    }
+                    continue;
+                }
+
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK,
+                    method: 'set',
+                    uri: '/attendance-queues',
+                    type: 'application/vnd.iris.desk.attendancequeue+json',
+                    resource: {
+                        name: fila.name,
+                        isActive: fila.isActive !== false,
+                        ownerIdentity: ownerDestino,
+                        Priority: fila.Priority || 0
+                    }
+                });
+
+                if (data.status === 'success') {
+                    criadas++;
+                    addLogItem(`✅ Fila criada no destino: ${fila.name}`, 'success');
+                } else {
+                    addLogItem(`❌ Erro ao criar a fila "${fila.name}": ${reasonOf(data)}`, 'error');
+                    showError(`Erro ao criar a fila "${fila.name}": ${reasonOf(data)}`);
+                }
+                await sleep(WRITE_DELAY);
+            }
+
+            addLogItem(`✅ Filas: ${criadas} criada(s), ${mantidas} já existente(s). Nenhuma fila é removida.`, 'success');
+        }
+
+        /* ---------------- Regras de atendimento ---------------- */
+
+        // A Blip mantém dois formatos em paralelo: conditions[] (novo) e
+        // property/relation/values na raiz (condição única, legado). Lê os dois.
+        function attendanceRuleConditions(regra) {
+            if (Array.isArray(regra.conditions) && regra.conditions.length > 0) return regra.conditions;
+            if (regra.property) return [{ property: regra.property, relation: regra.relation, values: regra.values }];
+            return [];
+        }
+
+        // O vínculo com a fila aqui é pelo NOME (campo team), não por id, então
+        // não precisa remapear nada entre os bots.
+        function attendanceRuleSignature(regra) {
+            return JSON.stringify([
+                normalizeName(regra.team),
+                String(regra.title == null ? '' : regra.title),
+                !!regra.isActive,
+                String(regra.operator || 'Or'),
+                canonConditions(attendanceRuleConditions(regra))
+            ]);
+        }
+
+        function buildAttendanceRulePayload(regra, ownerDestino, idDestino) {
+            const conditions = attendanceRuleConditions(regra).map(c => ({
+                property: String(c.property || ''),
+                relation: String(c.relation || ''),
+                values: (Array.isArray(c.values) ? c.values : []).map(v => String(v))
+            }));
+
+            const resource = {
+                // reusar o id do destino é o que transforma o set em update;
+                // gerar guid novo toda rodada era o que duplicava as regras
+                id: idDestino || generateGuid(),
+                ownerIdentity: ownerDestino,
+                isActive: !!regra.isActive,
+                title: String(regra.title == null ? '' : regra.title),
+                team: String(regra.team || ''),
+                operator: String(regra.operator || 'Or'),
+                conditions: conditions
+            };
+
+            // espelha a condição única na raiz, no formato legado
+            if (conditions.length === 1) {
+                resource.property = conditions[0].property;
+                resource.relation = conditions[0].relation;
+                resource.values = conditions[0].values;
+            }
+            return resource;
+        }
+
+        async function processarRegrasAtendimento(contrato, authorization, destinoContrato, destinoAuthorization) {
+            const ownerOrigem = await getBotIdentity(contrato, authorization);
+            const ownerDestino = await getBotIdentity(destinoContrato, destinoAuthorization);
+            if (ownerOrigem === ownerDestino) {
+                throw new Error('origem e destino são o mesmo bot - clonagem cancelada');
+            }
+
+            addLogItem('📥 Buscando regras de atendimento...', 'info');
+            const regrasOrigem = await deskGetAll(contrato, authorization, '/rules');
+            const regrasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/rules');
+            addLogItem(`✅ Origem: ${regrasOrigem.length} regra(s) de atendimento | Destino: ${regrasDestino.length}`, 'info');
+
+            // As regras apontam para a fila pelo nome, então avisa antes de
+            // tentar gravar algo que a Blip vai recusar.
+            const filasDestino = await deskGetAll(destinoContrato, destinoAuthorization, '/attendance-queues');
+            const nomesDestino = new Set(filasDestino.map(f => normalizeName(f.name)));
+
+            const chave = regra => normalizeName(regra.team) + '||' + normalizeName(regra.title);
+            const diff = diffBySignature(regrasOrigem, regrasDestino, attendanceRuleSignature, attendanceRuleSignature);
+            const plano = pairIntoUpdates(diff.criar, diff.deletar, chave, chave);
+
+            if (regrasOrigem.length === 0 && plano.deletar.length > 0) {
+                addLogItem(`⚠️ A origem não tem regras de atendimento: as ${plano.deletar.length} do destino serão removidas`, 'error');
+            }
+            console.log('Snapshot das regras de atendimento do destino, antes das mudanças:', JSON.stringify(regrasDestino));
+
+            let removidas = 0, atualizadas = 0, criadas = 0;
+
+            for (const regra of plano.deletar) {
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK, method: 'delete', uri: `/rules/${regra.id}`
+                });
+                if (data.status === 'success') {
+                    removidas++;
+                    addLogItem(`🗑️ Regra de atendimento removida do destino: ${regra.title}`, 'info');
+                } else {
+                    addLogItem(`❌ Erro ao remover a regra "${regra.title}": ${reasonOf(data)}`, 'error');
+                    showError(`Erro ao remover a regra "${regra.title}": ${reasonOf(data)}`);
+                }
+                await sleep(WRITE_DELAY);
+            }
+
+            const gravar = async (regraOrigem, idDestino, verbo) => {
+                if (!nomesDestino.has(normalizeName(regraOrigem.team))) {
+                    addLogItem(`❌ Regra "${regraOrigem.title}" ignorada: a fila "${regraOrigem.team}" não existe no destino (ligue o switch Filas)`, 'error');
+                    showError(`Regra "${regraOrigem.title}" -> fila "${regraOrigem.team}" não existe no destino`);
+                    return false;
+                }
+                const data = await deskCommand(destinoContrato, destinoAuthorization, {
+                    to: DESK,
+                    method: 'set',
+                    uri: '/rules',
+                    type: 'application/vnd.iris.desk.rule+json',
+                    resource: buildAttendanceRulePayload(regraOrigem, ownerDestino, idDestino)
+                });
+                if (data.status !== 'success') {
+                    addLogItem(`❌ Erro ao ${verbo} a regra "${regraOrigem.title}": ${reasonOf(data)}`, 'error');
+                    showError(`Erro ao ${verbo} a regra "${regraOrigem.title}": ${reasonOf(data)}`);
+                    return false;
+                }
+                await sleep(WRITE_DELAY);
+                return true;
+            };
+
+            for (const par of plano.atualizar) {
+                if (await gravar(par.origem, par.destino.id, 'atualizar')) {
+                    atualizadas++;
+                    addLogItem(`📤 Regra de atendimento atualizada: ${par.origem.title}`, 'success');
+                }
+            }
+
+            for (const regra of plano.criar) {
+                if (await gravar(regra, '', 'criar')) {
+                    criadas++;
+                    addLogItem(`📤 Regra de atendimento criada: ${regra.title}`, 'success');
+                }
+            }
+
+            addLogItem(`✅ Regras de atendimento: ${criadas} criada(s), ${atualizadas} atualizada(s), ${diff.iguais} já idêntica(s), ${removidas} removida(s)`, 'success');
         }
 
         // Função para obter variáveis de configuração do bot de origem

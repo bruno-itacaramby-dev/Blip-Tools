@@ -2,7 +2,8 @@
 ## Funcionalidades
 
 - **Clonar Recursos:** Migre recursos entre diferentes contratos de forma rápida e segura.
-- **Clonar Bots:** Copie fluxos, filas, regras, atendentes, tags, respostas prontas e variáveis de configuração entre bots.
+- **Clonar Bots:** Copie fluxos, filas, regras de atendimento, regras de priorização, atendentes, tags, respostas prontas e variáveis de configuração entre bots.
+  - As regras de atendimento e de priorização funcionam como **espelho idempotente**: rodar quantas vezes quiser não duplica nada, o que estiver diferente no destino é corrigido e o que sobrar é removido. Filas que já existem no destino nunca são recriadas, e fila nenhuma é apagada.
 - **Resetar Usuário:** Limpe variáveis e contexto de usuários de forma simples.
 
 ## Como usar
