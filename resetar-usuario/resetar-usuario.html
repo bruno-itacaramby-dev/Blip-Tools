@@ -342,18 +342,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="identidade">Identidade do Usuário:</label>
-                        <input 
-                            type="text" 
-                            id="identidade" 
-                            name="identidade" 
-                            placeholder="Digite a identidade do usuário (ex: 5511999999999@wa.gw.msging.net)"
+                        <label for="identidade">Identidade(s) do Usuário:</label>
+                        <input
+                            type="text"
+                            id="identidade"
+                            name="identidade"
+                            placeholder="ex: 5511999999999@wa.gw.msging.net,5511988888888@wa.gw.msging.net"
                             required
                         >
+                        <div style="color:#718096; font-size:0.85rem;">Para resetar vários contatos em sequência, separe as identidades por vírgula.</div>
                     </div>
-                    
+
                     <button type="submit" class="btn-primary">
-                        <span class="btn-text">Resetar Usuário</span>
+                        <span class="btn-text">Resetar Usuário(s)</span>
                         <span class="btn-loading" style="display: none;">
                             <div class="spinner"></div>
                             Resetando...
@@ -452,9 +453,11 @@
         }
 
         // Função para incrementar contador de requisições
+        let currentContactLabel = '';
         function incrementRequestCounter() {
             requestCounter++;
-            updateProgress(requestCounter, totalRequests, `Processando requisição ${requestCounter}`);
+            const prefixo = currentContactLabel ? `${currentContactLabel} · ` : '';
+            updateProgress(requestCounter, totalRequests, `${prefixo}requisição ${requestCounter}`);
         }
 
         // Função para mostrar erro
@@ -593,9 +596,12 @@
             
             const contrato = contratoInput.value.trim();
             const authorization = authorizationInput.value.trim();
-            const identidade = identidadeInput.value.trim();
-            
-            if (!contrato || !authorization || !identidade) {
+            // Várias identidades separadas por vírgula (também aceita ; e quebra de linha)
+            const identidades = [...new Set(
+                identidadeInput.value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+            )];
+
+            if (!contrato || !authorization || identidades.length === 0) {
                 showError('Por favor, preencha todos os campos obrigatórios.');
                 return;
             }
@@ -603,6 +609,7 @@
             // Resetar contadores e logs
             requestCounter = 0;
             totalRequests = 0;
+            currentContactLabel = '';
             resetLog.innerHTML = '';
             
             // Mostrar loading e progresso
@@ -617,50 +624,73 @@
             });
             
             try {
-                addLog('🚀 Iniciando processo de reset do usuário...', 'info');
-                
-                // Primeiro, fazer uma requisição para contar o total de variáveis
-                const countUrl = `https://${contrato}.http.msging.net/commands`;
-                const countResponse = await fetch(countUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authorization
-                    },
-                    body: JSON.stringify({
-                        id: generateRandomId(),
-                        method: 'get',
-                        uri: `/contexts/${identidade}?withContextValues=true&$take=1000`
-                    })
-                });
+                const totalContatos = identidades.length;
+                addLog(`🚀 Iniciando reset de ${totalContatos} contato(s)...`, 'info');
 
-                if (countResponse.ok) {
-                    const countData = await countResponse.json();
-                    if (countData.resource && Array.isArray(countData.resource.items)) {
-                        totalRequests = countData.resource.items.length + 2; // +2 para a requisição inicial e delete do contexto
-                        addLog(`📊 Total de operações: ${totalRequests}`, 'info');
-                    } else {
-                        totalRequests = 2; // Apenas a requisição inicial e delete do contexto
-                        addLog(`📊 Total de operações: ${totalRequests}`, 'info');
+                // Primeiro, contar o total de variáveis de todos os contatos
+                const countUrl = `https://${contrato}.http.msging.net/commands`;
+                for (const identidade of identidades) {
+                    let operacoes = 2; // requisição inicial + delete do contexto
+                    try {
+                        const countResponse = await fetch(countUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': authorization
+                            },
+                            body: JSON.stringify({
+                                id: generateRandomId(),
+                                method: 'get',
+                                uri: `/contexts/${identidade}?withContextValues=true&$take=1000`
+                            })
+                        });
+                        if (countResponse.ok) {
+                            const countData = await countResponse.json();
+                            if (countData.resource && Array.isArray(countData.resource.items)) {
+                                operacoes += countData.resource.items.length;
+                            }
+                        }
+                    } catch (e) {
+                        // a falha aparece no reset desse contato
+                    }
+                    totalRequests += operacoes;
+                }
+                addLog(`📊 Total de operações: ${totalRequests}`, 'info');
+
+                // Executar o reset de cada contato, um depois do outro
+                const falhas = [];
+                for (let i = 0; i < totalContatos; i++) {
+                    const identidade = identidades[i];
+                    addLog(`👤 Contato ${i + 1}/${totalContatos}: ${identidade}`, 'info');
+                    currentContactLabel = `Contato ${i + 1}/${totalContatos}: ${identidade}`;
+                    currentOperation.textContent = currentContactLabel;
+                    try {
+                        await fetchData(authorization, contrato, identidade);
+                        addLog(`🎉 Reset de ${identidade} concluído`, 'success');
+                    } catch (error) {
+                        falhas.push(identidade);
+                        addLog(`❌ Falha ao resetar ${identidade}: ${error.message}`, 'error');
                     }
                 }
 
-                // Executar o reset do usuário
-                await fetchData(authorization, contrato, identidade);
-                
-                addLog('🎉 Reset do usuário concluído com sucesso!', 'success');
+                const sucesso = totalContatos - falhas.length;
+                if (falhas.length > 0) {
+                    throw new Error(`${sucesso}/${totalContatos} contato(s) resetado(s). Falharam: ${falhas.join(', ')}`);
+                }
+
+                addLog(`🎉 ${sucesso}/${totalContatos} contato(s) resetado(s) com sucesso!`, 'success');
                 updateProgress(totalRequests, totalRequests, 'Concluído');
-                
+
                 // Scroll para o final da página para mostrar todo o processo
                 window.scrollTo({
                     top: document.body.scrollHeight,
                     behavior: 'smooth'
                 });
-                
+
             } catch (error) {
                 addLog(`❌ Erro: ${error.message}`, 'error');
                 updateProgress(requestCounter, totalRequests, 'Concluído com erros');
-                showError(`Erro ao resetar usuário: ${error.message}`);
+                showError(`Erro ao resetar usuário(s): ${error.message}`);
                 
                 // Scroll para o final da página mesmo em caso de erro
                 window.scrollTo({
